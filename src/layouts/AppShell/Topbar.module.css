@@ -1,0 +1,172 @@
+/*
+ * Topbar — sticky bar above page content.
+ *
+ * Three sections:
+ *   - Left:  mobile menu toggle (hidden >=768px).
+ *   - Right: clock, role badge, refresh action, sign-out.
+ *
+ * The clock uses tabular numerals so the width doesn't jitter.
+ * The role badge is a pill with brand-tinted colors and a soft
+ * background — visible at a glance without being shouty.
+ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 0 var(--space-6);
+  height: var(--layout-topbar-height);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.topbarLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topbarMenuButton {
+  display: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition: background var(--transition-fast);
+}
+
+.topbarMenuButton:hover {
+  background: var(--color-neutral-100);
+}
+
+.topbarMenuButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---------- Clock ---------- */
+
+.topbarClock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.topbarClockIcon {
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+}
+
+.topbarDate {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+}
+
+.topbarDivider {
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.topbarTime {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Role badge (pill) ---------- */
+
+.topbarRoleOwner,
+.topbarRoleEmployee,
+.topbarRoleGuest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.topbarRoleOwner {
+  background: var(--gradient-brand-soft);
+  color: var(--color-primary-active);
+  border: 1px solid var(--color-primary-ring);
+}
+
+.topbarRoleEmployee {
+  background: var(--color-info-soft);
+  color: var(--color-info-ink);
+  border: 1px solid #bae6fd;
+}
+
+.topbarRoleGuest {
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.topbarRoleDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ---------- Sign-out identity (small text under button) ---------- */
+
+.topbarUser {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: 2px;
+  font-weight: var(--font-weight-medium);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1023px) {
+  .topbarClock {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .topbar {
+    padding: 0 var(--space-4);
+  }
+  .topbarRoleOwner,
+  .topbarRoleEmployee,
+  .topbarRoleGuest {
+    /* Hide on very small screens — clock takes too much room. */
+    display: none;
+  }
+}

@@ -1,0 +1,121 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast), box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.button:active:not(:disabled):not(.loading) {
+  transform: translateY(1px);
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Reserve the leading slot so width is stable across loading ↔ icon ↔ text. */
+.label {
+  display: inline-block;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+/* ---------- Sizes ---------- */
+.size-sm {
+  min-height: 32px;
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-3);
+}
+.size-lg {
+  min-height: 48px;
+  font-size: var(--font-size-lg);
+  padding: 0 var(--space-5);
+}
+
+/* ---------- Variants ---------- */
+.variant-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+.variant-primary:hover:not(:disabled):not(.loading) {
+  background: var(--color-primary-hover);
+}
+.variant-primary:active:not(:disabled):not(.loading) {
+  background: var(--color-primary-active);
+}
+
+.variant-secondary {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.variant-secondary:hover:not(:disabled):not(.loading) {
+  background: var(--color-neutral-100);
+  border-color: var(--color-border-strong);
+}
+
+.variant-danger {
+  background: var(--color-danger);
+  color: #fff;
+}
+.variant-danger:hover:not(:disabled):not(.loading) {
+  background: #b91c1c;
+}
+
+.variant-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.variant-ghost:hover:not(:disabled):not(.loading) {
+  background: var(--color-neutral-100);
+  color: var(--color-text);
+}
+
+/* ---------- Loading ---------- */
+.loading {
+  cursor: progress;
+}
+
+.spinner {
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 720ms linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Make the spinner readable on light backgrounds for primary/danger. */
+.variant-primary .spinner,
+.variant-danger .spinner {
+  border-color: rgba(255, 255, 255, 0.6);
+  border-top-color: #fff;
+}

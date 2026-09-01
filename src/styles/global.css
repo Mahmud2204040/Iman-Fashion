@@ -1,0 +1,97 @@
+/*
+ * Global styles.
+ *
+ * Keep this minimal. Anything component-specific lives in CSS Modules.
+ * Token values come from tokens.css.
+ */
+
+@import "./tokens.css";
+
+/*
+ * Typography — Inter from Google Fonts.
+ *
+ * Loaded at module top so the very first paint uses the right family and
+ * avoids a visible font swap on navigation. Falls back to the system
+ * stack declared in --font-family-base if the network is unavailable.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Form controls inherit font + color so they don't look out of place. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* Visible focus only for keyboard users. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+/* Disabled state — applies to anything we mark aria-disabled or disabled. */
+[disabled],
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}

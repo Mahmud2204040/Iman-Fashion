@@ -1,0 +1,107 @@
+.wrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+}
+
+/* ---------- Desktop / tablet table ---------- */
+.tableScroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.th {
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-neutral-50);
+  white-space: nowrap;
+}
+
+.tr {
+  transition: background var(--transition-fast);
+}
+
+.tr:hover {
+  background: var(--color-neutral-50);
+}
+
+.tr + .tr .td {
+  border-top: 1px solid var(--color-border);
+}
+
+.td {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+/* ---------- Mobile cards ---------- */
+.cardList {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-3);
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.cardList_inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.cardRow {
+  display: grid;
+  grid-template-columns: minmax(96px, 40%) 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.cardLabel {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.cardValue {
+  margin: 0;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+/* Breakpoint: cards visible below 640px, table hidden. */
+@media (max-width: 639.98px) {
+  .tableScroll {
+    display: none;
+  }
+  .cardList {
+    display: flex;
+  }
+}

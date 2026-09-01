@@ -1,0 +1,197 @@
+/* NewCustomOrderPage — Phase 7 — premium blue. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 28px 32px 56px;
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary, #475569);
+  padding: 32px;
+}
+
+.backLink {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+.backLink:hover {
+  background-color: var(--color-primary-soft);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionTitle {
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1.2fr;
+  gap: 14px;
+}
+
+.preview {
+  margin-top: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-ring);
+  border-radius: 8px;
+}
+.preview strong {
+  color: var(--color-text, #0f172a);
+  font-weight: 700;
+}
+
+.customerCard {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background-color: #f8fafc;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+  border-left: 3px solid var(--color-primary);
+}
+.customerLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #64748b);
+}
+.customerCard strong {
+  font-size: 15px;
+  color: var(--color-text, #0f172a);
+  font-weight: 700;
+}
+.customerMeta {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.empty {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--color-text-secondary, #64748b);
+  text-align: center;
+  padding: 16px;
+}
+.emptyActions {
+  display: flex;
+  justify-content: center;
+}
+
+.errorBanner {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--color-primary);
+  text-decoration: none;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 16px rgba(37, 99, 235, 0.18);
+  transition: background-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+.btnPrimary:hover {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06), 0 10px 24px rgba(37, 99, 235, 0.25);
+}
+.btnPrimary:active {
+  background: var(--color-primary-active);
+  transform: translateY(0);
+}
+
+.btnGhost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+  background-color: transparent;
+  text-decoration: none;
+  border: 1px solid var(--color-border, #e2e8f0);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.btnGhost:hover {
+  background-color: var(--color-primary-soft);
+  border-color: var(--color-primary-ring);
+  color: var(--color-primary);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 720px) {
+  .page {
+    padding: 18px 16px 48px;
+  }
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

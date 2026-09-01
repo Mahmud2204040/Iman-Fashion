@@ -1,0 +1,41 @@
+{
+  "name": "ni-fashion-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "NI Fashion shop management — frontend (mock-only).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "smoke:auth": "node smoke-auth.mjs",
+    "smoke:dashboard": "node scripts/smoke-dashboard.mjs",
+    "smoke:sales": "node scripts/smoke-sales.mjs",
+    "smoke:customers": "node scripts/smoke-customers.mjs",
+    "smoke:custom-orders": "node scripts/smoke-custom-orders.mjs",
+    "smoke:products": "node scripts/smoke-products.mjs",
+    "smoke:suppliers": "node scripts/smoke-suppliers.mjs",
+    "smoke:purchases": "node scripts/smoke-purchases.mjs",
+    "smoke:raw-materials": "node scripts/smoke-raw-materials.mjs",
+    "smoke:expenses": "node scripts/smoke-expenses.mjs",
+    "smoke:cash": "node scripts/smoke-cash.mjs",
+    "smoke:all": "npm run smoke:auth && npm run smoke:dashboard && npm run smoke:sales && npm run smoke:customers && npm run smoke:custom-orders && npm run smoke:products && npm run smoke:suppliers && npm run smoke:purchases && npm run smoke:raw-materials && npm run smoke:expenses && npm run smoke:cash",
+    "probe:login": "powershell -NoProfile -ExecutionPolicy Bypass -File probe-login.ps1"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.14",
+    "globals": "^15.11.0",
+    "vite": "^5.4.10"
+  }
+}

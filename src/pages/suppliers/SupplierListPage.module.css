@@ -1,0 +1,335 @@
+/* SupplierListPage — Phase 9 — premium blue card grid. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary, #475569);
+  padding: 32px;
+  justify-content: center;
+}
+
+/* ---------- Form ---------- */
+
+.formCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formTitle {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.formError {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---------- Controls ---------- */
+
+.controlsCard {
+  padding: 14px 16px !important;
+}
+
+.searchRow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.filterRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 999px;
+  background-color: #ffffff;
+  color: var(--color-text-secondary, #475569);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+.filterPill:hover {
+  border-color: var(--color-primary-ring);
+  color: var(--color-text, #0f172a);
+}
+
+.filterPillActive {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 6px 16px rgba(37, 99, 235, 0.18);
+}
+.filterPillActive:hover {
+  border-color: var(--color-primary-hover);
+  background-color: var(--color-primary-hover);
+  color: #ffffff;
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  background-color: rgba(255, 255, 255, 0.16);
+  color: inherit;
+}
+.filterPill:not(.filterPillActive) .filterCount {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+/* ---------- Card grid ---------- */
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 18px 20px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.18s ease;
+  min-height: 220px;
+}
+.card:hover {
+  border-color: var(--color-primary-ring);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06), 0 12px 28px rgba(37, 99, 235, 0.12);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.iconWrap {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardHeadText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cardName {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.metaLine {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.statusDot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 10px;
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.04);
+}
+.dotActive {
+  background-color: #10b981;
+}
+.dotInactive {
+  background-color: #cbd5e1;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.metaText {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* ---------- Totals row ---------- */
+
+.totalsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
+}
+
+.totalCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+
+.totalLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.totalValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+
+.totalSub {
+  font-size: 10px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.totalCellDue .totalValue {
+  color: #b91c1c;
+}
+
+.dueBadge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+/* ---------- Footer ---------- */
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--color-border, #e2e8f0);
+}
+
+.footerMeta {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+  .totalsRow {
+    grid-template-columns: 1fr;
+  }
+}

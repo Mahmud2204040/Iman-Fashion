@@ -1,0 +1,488 @@
+/* CustomOrderDetailPage — premium blue detail surface. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px 32px 56px;
+  max-width: 1180px;
+  margin: 0 auto;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary, #475569);
+  padding: 32px;
+}
+
+.backLink {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+.backLink:hover {
+  background-color: var(--color-primary-soft);
+}
+
+/* ---------- Status pill (large variant) ---------- */
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.toneWarning {
+  color: #b45309;
+  background-color: #fffbeb;
+  border-color: #fde68a;
+}
+.toneInfo {
+  color: #1d4ed8;
+  background-color: var(--color-primary-soft);
+  border-color: var(--color-primary-ring);
+}
+.toneSuccess {
+  color: #047857;
+  background-color: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.toneNeutral {
+  color: #334155;
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+}
+.toneDanger {
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* ---------- Summary card ---------- */
+
+.summary {
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.summaryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  padding-bottom: 14px;
+}
+
+.summaryTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+.summaryTitle :global(svg) {
+  color: var(--color-primary);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 28px;
+  margin: 0;
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.summaryItem dt {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #64748b);
+}
+.summaryItem dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text, #0f172a);
+  font-weight: 500;
+  word-break: break-word;
+}
+.summaryTotal {
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 16px;
+}
+
+.link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.15s ease;
+}
+.link:hover {
+  border-bottom-color: var(--color-primary);
+}
+
+.descBlock {
+  background-color: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-ring);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.descLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-primary);
+}
+.desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text, #0f172a);
+  line-height: 1.5;
+}
+
+.progressBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.progressMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+}
+.progressDue {
+  color: #b45309;
+}
+.progressPaid {
+  color: #047857;
+}
+.progressTrack {
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--color-border, #e2e8f0);
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gradient-brand);
+  transition: width 0.4s ease;
+}
+
+/* ---------- Two-column section ---------- */
+
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.card {
+  background-color: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  padding-bottom: 12px;
+}
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+.empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary, #64748b);
+  padding: 14px;
+  background-color: #f8fafc;
+  border-radius: 10px;
+  text-align: center;
+}
+
+/* ---------- Payments list ---------- */
+
+.payList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.payRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.payRow:hover {
+  border-color: var(--color-primary-ring);
+  transform: translateY(-1px);
+}
+.payMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.payAmount {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+.payMeta {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+.payNote {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-text, #0f172a);
+  background-color: var(--color-surface, #ffffff);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  margin-top: 4px;
+}
+.payCashIn {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary-ring);
+  align-self: flex-start;
+}
+
+/* ---------- Payment form ---------- */
+
+.payForm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border, #e2e8f0);
+}
+.payFormTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+.payFormRow {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.payError {
+  margin: 0;
+  font-size: 12px;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+}
+.payActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.payHint {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* ---------- Notes + timeline side panel ---------- */
+
+.notes {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--color-text, #0f172a);
+  background-color: #f8fafc;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+.notesActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.timeline {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background-color: var(--color-border, #e2e8f0);
+}
+.timeline li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.timeline li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.timeline strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 700;
+}
+.timeline span {
+  color: var(--color-text, #0f172a);
+}
+.tlDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  border: 2px solid var(--color-surface, #ffffff);
+  box-shadow: 0 0 0 1px var(--color-primary-ring);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+/* ---------- Status actions ---------- */
+
+.statusActions {
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.statusTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+.statusBtns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.statusHint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+  line-height: 1.4;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 960px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 18px 16px 48px;
+  }
+  .summary {
+    padding: 18px 18px;
+  }
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+  .payFormRow {
+    grid-template-columns: 1fr;
+  }
+  .card {
+    padding: 18px;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

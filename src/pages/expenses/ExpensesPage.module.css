@@ -1,0 +1,128 @@
+/* ExpensesPage — Phase 11 — owner-only. Expenses MUST NOT auto-create cash rows. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary, #475569);
+  padding: 32px;
+  justify-content: center;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background-color: var(--color-warning-soft, #fff7ed);
+  color: #9a3412;
+  font-size: 13px;
+  border: 1px solid #fed7aa;
+}
+
+.banner strong { font-weight: 700; }
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.summaryRow > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summaryLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.summaryValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-text, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+
+.formCard { display: flex; flex-direction: column; gap: 12px; }
+
+.formTitle {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+
+.row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+.formError {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.formActions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.controlsCard { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.tableWrap { overflow-x: auto; }
+
+.expenseAmount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text, #0f172a);
+}
+
+.expenseCategory {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background-color: var(--color-info-soft, #eff6ff);
+  color: #1e40af;
+}
+
+.expenseDescription {
+  max-width: 360px;
+  white-space: normal;
+  color: var(--color-text, #0f172a);
+}
+
+.expenseDescriptionEmpty { color: var(--color-text-secondary, #94a3b8); font-style: italic; }
+
+@media (max-width: 720px) {
+  .row { grid-template-columns: 1fr; }
+  .summaryRow { grid-template-columns: 1fr; }
+}

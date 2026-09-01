@@ -1,0 +1,97 @@
+/*
+ * BottomNav — mobile-only bottom-tab bar.
+ *
+ * Hidden >=768px. Gives users a thumb-reachable alternative to the
+ * hamburger drawer when navigating the most important screens.
+ */
+
+.bar {
+  display: none;
+}
+
+.list {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (max-width: 767px) {
+  .bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-overlay);
+    display: block;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -10px 30px -20px rgba(15, 23, 42, 0.18);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .list {
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 0;
+    height: 60px;
+  }
+
+  .item {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 100%;
+    padding: 6px 4px 4px;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.01em;
+    position: relative;
+    transition: color var(--transition-fast);
+  }
+
+  .link:hover {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .iconWrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .linkActive {
+    color: var(--color-primary);
+  }
+
+  .linkActive .iconWrap {
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+
+  .label {
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+}

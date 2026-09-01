@@ -1,0 +1,99 @@
+﻿/*
+ * DashboardPage — calm hero, premium card grid.
+ *
+ * Hero is intentionally simple: the eyebrow + title + description are
+ * handled by <PageHeader>. We only need a tiny utility for the
+ * highlighted name in the title.
+ *
+ * Below the header: a 4-up stats grid that collapses to 1/2/4 columns
+ * at mobile/tablet/desktop, and a two-column split (activity feed +
+ * quick actions).
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* ---------- Hero highlight (inline emphasis on the name) ---------- */
+
+.heroHighlight {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Stats grid ---------- */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1100px) {
+  .statsGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ---------- Two-column split ---------- */
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 1024px) {
+  .split {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.splitMain,
+.splitAside {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ---------- States ---------- */
+
+.loadingState,
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+  gap: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.errorState {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.loadingText,
+.errorText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.errorText {
+  color: #b91c1c;
+}

@@ -1,0 +1,552 @@
+/*
+ * AppShell — premium SaaS shell.
+ *
+ * Design notes:
+ *   - Dark sidebar on light content. The contrast is intentional — it
+ *     makes navigation easier to scan and signals "product chrome"
+ *     rather than "marketing page".
+ *   - Topbar stays light so the dashboard cards (which are also light)
+ *     feel like the main content. A dark topbar on a dark sidebar
+ *     would make both chrome and content feel equally weighted.
+ *   - Content area uses an off-white background with a subtle mesh of
+ *     brand-tinted radial gradients so it never reads as "dead white".
+ */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--layout-sidebar-width) 1fr;
+  min-height: 100vh;
+  background: var(--color-background-tinted);
+  background-image: var(--gradient-mesh, none);
+}
+
+/* ---------- Sidebar slot (desktop) ---------- */
+
+.sidebarSlot {
+  display: block;
+  background: var(--color-sidebar-bg);
+  background-image: var(--color-sidebar-glow);
+  background-repeat: no-repeat;
+  color: var(--color-sidebar-text);
+  border-right: 1px solid var(--color-sidebar-border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-shadow: 1px 0 0 0 rgba(255, 255, 255, 0.02),
+    24px 0 48px -24px rgba(0, 0, 0, 0.35);
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  padding: var(--space-6) var(--space-5) var(--space-5);
+  border-bottom: 1px solid var(--color-sidebar-border);
+}
+
+.sidebarNav {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-3) var(--space-4);
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.sidebarNav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebarNav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+}
+
+.sidebarGroup + .sidebarGroup {
+  margin-top: var(--space-5);
+}
+
+/* Group header (collapsible top-level label) */
+
+.sidebarGroupToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 var(--space-3);
+  margin-bottom: var(--space-2);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-widest);
+  text-transform: uppercase;
+  color: var(--color-sidebar-text-muted);
+  transition: color var(--transition-fast);
+}
+
+.sidebarGroupToggle:hover {
+  color: var(--color-sidebar-text-strong);
+}
+
+.sidebarGroupToggle:focus-visible {
+  outline: none;
+  color: var(--color-sidebar-text-strong);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+  border-radius: var(--radius-sm);
+}
+
+.sidebarGroupToggleActive {
+  color: var(--color-sidebar-text-strong);
+}
+
+.sidebarGroupLabel {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebarGroupChevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition:
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.sidebarGroupChevronOpen {
+  transform: rotate(0deg);
+  opacity: 1;
+}
+
+/* Sub-group (nested) */
+
+.sidebarSubGroup {
+  list-style: none;
+}
+
+.sidebarSubToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 8px var(--space-3);
+  margin-top: 2px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--color-sidebar-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.005em;
+  text-align: left;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.sidebarSubToggle:hover {
+  background: var(--color-sidebar-hover-bg);
+  color: var(--color-sidebar-text-strong);
+}
+
+.sidebarSubToggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.35);
+}
+
+.sidebarSubToggleActive {
+  color: var(--color-sidebar-text-strong);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sidebarSubIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebarSubLabel {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebarSubChevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.65;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition:
+    transform var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.sidebarSubChevronOpen {
+  transform: rotate(0deg);
+  opacity: 1;
+}
+
+.sidebarSubList {
+  list-style: none;
+  margin: 4px 0 4px 0;
+  padding: 0 0 0 var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  margin-left: var(--space-5);
+}
+
+.sidebarLinkChild {
+  padding: 8px var(--space-3);
+  font-size: 13px;
+  border-radius: var(--radius-md);
+}
+
+/* Legacy alias for backwards compatibility */
+.sidebarGroupLabel { /* keep selector available even if unused */
+  font-size: 11px;
+}
+
+.sidebarList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebarLink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  color: var(--color-sidebar-text);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.005em;
+  text-decoration: none;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.sidebarLink:hover {
+  background: var(--color-sidebar-hover-bg);
+  border-color: var(--color-sidebar-hover-border);
+  color: var(--color-sidebar-text-strong);
+  text-decoration: none;
+}
+
+.sidebarLink:focus-visible {
+  outline: none;
+  border-color: var(--color-sidebar-active-border);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+.sidebarLinkActive {
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-text-active);
+  border-color: var(--color-sidebar-active-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 18px -10px rgba(37, 99, 235, 0.65);
+}
+
+.sidebarLinkActive:hover {
+  background: var(--color-sidebar-active-bg);
+  border-color: var(--color-sidebar-active-border);
+}
+
+.sidebarLinkBar {
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  bottom: auto;
+  height: 60%;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-sidebar-active-bar);
+  box-shadow: 0 0 12px rgba(165, 180, 252, 0.6);
+  opacity: 0;
+  transform: translateY(-50%) scaleY(0.4);
+  transform-origin: center;
+  transition:
+    opacity var(--transition-normal),
+    transform var(--transition-normal);
+}
+
+.sidebarLinkActive .sidebarLinkBar {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
+
+.sidebarLinkIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebarLinkActive .sidebarLinkIcon {
+  color: var(--color-primary-ring);
+}
+
+.sidebarLinkLabel {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebarFooter {
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-sidebar-border);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.sidebarUser {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-sidebar-surface);
+  border: 1px solid var(--color-sidebar-border);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.sidebarUser:hover {
+  background: var(--color-sidebar-surface-hi);
+  border-color: var(--color-sidebar-hover-border);
+}
+
+.sidebarAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: var(--gradient-brand);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.08),
+    0 6px 14px -6px rgba(79, 70, 229, 0.7);
+}
+
+.sidebarUserMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sidebarUserName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-sidebar-text-strong);
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+}
+
+.sidebarUserRole {
+  font-size: 10.5px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-sidebar-text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-widest);
+}
+
+/* ---------- Logo ---------- */
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.logoCompact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.logoImage {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 14px -6px rgba(0, 0, 0, 0.5);
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.logoName {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: #ffffff;
+  letter-spacing: var(--letter-spacing-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logoSub {
+  font-size: 10.5px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-sidebar-text-muted);
+  letter-spacing: var(--letter-spacing-widest);
+  text-transform: uppercase;
+}
+
+/* ---------- Topbar styles live in Topbar.module.css ---------- */
+
+/* ---------- Main / content ---------- */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* prevent grid blowout from wide children */
+}
+
+.content {
+  flex: 1;
+  padding: var(--space-6) var(--space-6) var(--space-12);
+  max-width: var(--layout-content-max-width);
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ---------- Mobile drawer ---------- */
+
+.drawer {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebarSlot {
+    display: none;
+  }
+
+  .drawer {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    pointer-events: none;
+  }
+
+  .drawerOpen {
+    pointer-events: auto;
+  }
+
+  .drawerInner {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 280px;
+    max-width: 85vw;
+    background: var(--color-sidebar-bg);
+    transform: translateX(-100%);
+    transition: transform var(--transition-slow);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .drawerOpen .drawerInner {
+    transform: translateX(0);
+  }
+
+  .drawerScrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(9, 9, 11, 0.5);
+    opacity: 0;
+    transition: opacity var(--transition-slow);
+    cursor: pointer;
+  }
+
+  .drawerOpen .drawerScrim {
+    opacity: 1;
+  }
+
+  .topbarMenuButton {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0 var(--space-4);
+  }
+  .content {
+    padding: var(--space-4) var(--space-4) var(--space-12);
+  }
+}
+
+@media (max-width: 767px) {
+  /* Reserve room at the bottom so the fixed BottomNav doesn't cover
+     the last content row. */
+  .content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  }
+}

@@ -1,0 +1,151 @@
+/* CashPage — Phase 12 — Cash In and Cash Out only. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-secondary, #475569);
+  padding: 32px;
+  justify-content: center;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background-color: var(--color-info-soft, #eff6ff);
+  color: #1e40af;
+  font-size: 13px;
+  border: 1px solid #dbeafe;
+}
+
+.banner strong { font-weight: 700; }
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.kpiCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+}
+
+.kpiLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.kpiValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-text, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiValue.positive { color: #047857; }
+.kpiValue.negative { color: #b91c1c; }
+.kpiValue.muted    { color: var(--color-text-secondary, #64748b); }
+
+.kpiHint {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.panelGrid > section { display: flex; flex-direction: column; gap: 12px; }
+
+.panelTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.panelHint { font-size: 12px; color: var(--color-text-secondary, #64748b); margin: 0; }
+
+.form { display: flex; flex-direction: column; gap: 12px; }
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.formError {
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #b91c1c;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+}
+
+.formActions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.controlsCard { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.tableWrap { overflow-x: auto; }
+
+.amountIn  { font-weight: 700; font-variant-numeric: tabular-nums; color: #047857; }
+.amountOut { font-weight: 700; font-variant-numeric: tabular-nums; color: #b91c1c; }
+
+.referencePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background-color: var(--color-info-soft, #eff6ff);
+  color: #1e40af;
+  white-space: nowrap;
+}
+
+.reasonCell {
+  max-width: 360px;
+  white-space: normal;
+  color: var(--color-text, #0f172a);
+}
+
+.reasonCellEmpty { color: var(--color-text-secondary, #94a3b8); font-style: italic; }
+
+
+
+@media (max-width: 960px) {
+  .kpiGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .panelGrid { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 480px) {
+  .kpiGrid { grid-template-columns: 1fr; }
+}

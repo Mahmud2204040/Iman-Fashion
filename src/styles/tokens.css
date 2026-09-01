@@ -1,0 +1,208 @@
+/*
+ * NI Fashion — Design Tokens
+ *
+ * Single source of truth for color, spacing, radius, typography, shadow,
+ * and motion. Every component reads from these CSS custom properties.
+ *
+ * Rules:
+ *   - No raw color/spacing/radius values inside components.
+ *   - Mobile-first: spacing and type sizes are designed for small screens.
+ *   - Keep tokens restrained — do not introduce variants on a whim.
+ */
+
+:root {
+  /* ---------- Color: neutral scale ---------- */
+  --color-neutral-0:   #ffffff;
+  --color-neutral-50:  #fafafa;
+  --color-neutral-100: #f4f4f5;
+  --color-neutral-200: #e4e4e7;
+  --color-neutral-300: #d4d4d8;
+  --color-neutral-400: #a1a1aa;
+  --color-neutral-500: #71717a;
+  --color-neutral-600: #52525b;
+  --color-neutral-700: #3f3f46;
+  --color-neutral-800: #27272a;
+  --color-neutral-900: #18181b;
+  --color-neutral-950: #09090b;
+
+  /* ---------- Color: brand (single primary — blue) ---------- */
+  --color-primary:        #2563eb;
+  --color-primary-hover:  #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-soft:   #eff6ff;
+  --color-primary-ring:   #bfdbfe;
+
+  --color-accent:         #0ea5e9;
+  --color-accent-soft:    #e0f2fe;
+
+  /* ---------- Color: semantic ---------- */
+  --color-success:      #16a34a;
+  --color-success-soft: #dcfce7;
+  --color-success-ink:  #166534;
+
+  --color-warning:      #d97706;
+  --color-warning-soft: #fef3c7;
+  --color-warning-ink:  #92400e;
+
+  --color-danger:      #dc2626;
+  --color-danger-soft: #fee2e2;
+  --color-danger-ink:  #991b1b;
+
+  --color-info:      #0284c7;
+  --color-info-soft: #e0f2fe;
+  --color-info-ink:  #075985;
+
+  /* ---------- Color: surfaces ---------- */
+  --color-background:        var(--color-neutral-50);
+  --color-background-tinted: #f8fafc;
+  --color-surface:           #ffffff;
+  --color-surface-raised:    #ffffff;
+  --color-border:            var(--color-neutral-200);
+  --color-border-strong:     var(--color-neutral-300);
+  --color-border-subtle:     var(--color-neutral-100);
+
+  /* ---------- Color: text ---------- */
+  --color-text:           var(--color-neutral-900);
+  --color-text-secondary: var(--color-neutral-700);
+  --color-text-muted:     var(--color-neutral-500);
+  --color-text-disabled:  var(--color-neutral-400);
+
+  /* ---------- Sidebar palette (dark, premium) ----------
+   *
+   * Layered surfaces + strong text contrast. The rail is the deepest
+   * layer of the chrome — content sits on top in a lighter card system.
+   * Active state uses a soft brand tint + a bright accent bar.
+   */
+  --color-sidebar-bg:           #0b1220;
+  --color-sidebar-bg-soft:      #0f172a;
+  --color-sidebar-surface:      rgba(255, 255, 255, 0.04);
+  --color-sidebar-surface-hi:   rgba(255, 255, 255, 0.08);
+  --color-sidebar-border:       rgba(255, 255, 255, 0.06);
+  --color-sidebar-border-strong: rgba(255, 255, 255, 0.12);
+  --color-sidebar-glow:         radial-gradient(
+                                  120% 80% at 0% 0%,
+                                  rgba(37, 99, 235, 0.22) 0%,
+                                  rgba(37, 99, 235, 0) 60%
+                                );
+  --color-sidebar-text:         #e4e4e7;
+  --color-sidebar-text-strong:  #f8fafc;
+  --color-sidebar-text-muted:   #8b8d98;
+  --color-sidebar-text-active:  #ffffff;
+  --color-sidebar-hover-bg:     rgba(255, 255, 255, 0.06);
+  --color-sidebar-hover-border: rgba(255, 255, 255, 0.10);
+  --color-sidebar-active-bg:    linear-gradient(
+                                  90deg,
+                                  rgba(37, 99, 235, 0.28) 0%,
+                                  rgba(29, 78, 216, 0.22) 100%
+                                );
+  --color-sidebar-active-border: rgba(147, 197, 253, 0.45);
+  --color-sidebar-active-bar:    #93c5fd;
+
+  /* ---------- Gradients ---------- */
+  --gradient-brand:        linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --gradient-brand-soft:   linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  --gradient-success:      linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  --gradient-warning:      linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  --gradient-info:         linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+  --gradient-surface:      linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+
+  /* ---------- Spacing (4px scale) ---------- */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  28px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------- Border radius ---------- */
+  --radius-xs:   4px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
+  --radius-full: 999px;
+
+  /* ---------- Typography ---------- */
+  --font-family-base: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --font-family-display: "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  --font-size-xs:   12px;
+  --font-size-sm:   14px;
+  --font-size-base: 16px;
+  --font-size-lg:   20px;
+  --font-size-xl:   24px;
+  --font-size-2xl:  30px;
+  --font-size-3xl:  36px;
+  --font-size-4xl:  48px;
+
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+  --font-weight-black:    800;
+
+  --line-height-tight:   1.15;
+  --line-height-snug:    1.3;
+  --line-height-normal:  1.5;
+  --line-height-loose:   1.75;
+
+  --letter-spacing-tight:   -0.02em;
+  --letter-spacing-tighter: -0.03em;
+  --letter-spacing-normal:  0;
+  --letter-spacing-wide:    0.04em;
+  --letter-spacing-widest:  0.08em;
+
+  /* ---------- Shadows (multi-tier elevation) ---------- */
+  --shadow-xs:   0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-sm:   0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-md:   0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg:   0 12px 32px rgba(15, 23, 42, 0.08), 0 4px 8px rgba(15, 23, 42, 0.04);
+  --shadow-xl:   0 24px 56px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.06);
+  --shadow-ring: 0 0 0 1px var(--color-border-subtle);
+  --shadow-ring-brand: 0 0 0 1px var(--color-primary-ring);
+  --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04),
+                 0 1px 3px rgba(15, 23, 42, 0.06),
+                 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.06),
+                       0 2px 4px rgba(15, 23, 42, 0.04),
+                       0 0 0 1px rgba(15, 23, 42, 0.05);
+
+  /* ---------- Motion ---------- */
+  --transition-fast:   120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:   280ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:          cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:       cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---------- Z-index scale ---------- */
+  --z-base:    1;
+  --z-overlay: 100;
+  --z-modal:   110;
+  --z-toast:   120;
+  --z-tooltip: 130;
+
+  /* ---------- Layout ---------- */
+  --layout-sidebar-width:           260px;
+  --layout-sidebar-width-collapsed: 72px;
+  --layout-topbar-height:           64px;
+  --layout-content-max-width:       1320px;
+  --layout-gutter-mobile:           var(--space-4);
+  --layout-gutter-tablet:           var(--space-6);
+  --layout-gutter-desktop:          var(--space-8);
+
+  /* ---------- Focus ring ---------- */
+  --focus-ring:        0 0 0 3px var(--color-primary-soft);
+  --focus-ring-strong: 0 0 0 3px var(--color-primary-ring);
+}
