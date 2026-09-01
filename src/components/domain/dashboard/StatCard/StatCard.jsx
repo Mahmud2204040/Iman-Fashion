@@ -1,7 +1,5 @@
-import { ArrowDownIcon, ArrowUpIcon } from '../../../icons/DashboardIcon.jsx';
 import {
   formatCurrency,
-  formatDelta,
   formatNumber,
 } from '../../../../utils/format.js';
 import styles from './StatCard.module.css';
@@ -37,7 +35,6 @@ function StatCard({
   label,
   value,
   kind = 'currency',
-  delta,
   trend,
   accent,
   emphasis = 'normal',
@@ -50,10 +47,6 @@ function StatCard({
   } else {
     valueText = String(value);
   }
-
-  const hasDelta = typeof delta === 'number' && Number.isFinite(delta);
-  const trendUp = hasDelta && delta >= 0;
-  const TrendIcon = trendUp ? ArrowUpIcon : ArrowDownIcon;
 
   const cardClassName = [
     styles.card,
@@ -80,24 +73,10 @@ function StatCard({
 
       <div className={styles.valueRow}>
         <span className={styles.value}>{valueText}</span>
-        {hasDelta ? (
-          <span
-            className={`${styles.delta} ${
-              trendUp ? styles.deltaUp : styles.deltaDown
-            }`}
-          >
-            <TrendIcon size={12} strokeWidth={2.25} />
-            {formatDelta(delta)}
-          </span>
-        ) : null}
       </div>
 
       {Array.isArray(trend) && trend.length > 0 ? (
-        <Sparkline
-          data={trend}
-          tone={trendUp ? 'up' : 'down'}
-          accent={accent}
-        />
+        <Sparkline data={trend} accent={accent} />
       ) : null}
     </article>
   );
@@ -110,19 +89,14 @@ function StatCard({
  * heights to fit the viewBox. The last bar is coloured to draw the eye
  * to "today".
  */
-function Sparkline({ data, tone, accent }) {
+function Sparkline({ data, accent }) {
   const W = 100;
   const H = 28;
   const barWidth = 8;
   const gap = (W - barWidth * data.length) / (data.length - 1);
   const max = Math.max(...data, 1);
 
-  const toneClass =
-    tone === 'up'
-      ? accent
-        ? styles.sparkBarAccent
-        : styles.sparkBarUp
-      : styles.sparkBarDown;
+  const toneClass = accent ? styles.sparkBarAccent : styles.sparkBarUp;
 
   return (
     <svg

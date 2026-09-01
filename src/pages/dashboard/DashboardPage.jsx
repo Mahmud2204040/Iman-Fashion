@@ -15,12 +15,12 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useTicker } from '../../hooks/useTicker.js';
 import { ROLES } from '../../constants/roles.js';
 import { formatLongDate, greetingFor } from '../../utils/format.js';
-import { PageHeader } from '../../components/common/index.js';
 
 import StatCard from '../../components/domain/dashboard/StatCard/index.js';
 import ActivityFeed from '../../components/domain/dashboard/ActivityFeed/index.js';
-import QuickActions from '../../components/domain/dashboard/QuickActions/index.js';
+import NotesWidget from '../../components/domain/dashboard/NotesWidget/index.js';
 import {
+  CalendarIcon,
   CashHandIcon,
   CustomOrderIcon,
   ProductIcon,
@@ -91,7 +91,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { stats, activity, quickActions } = snapshot;
+  const { stats, activity } = snapshot;
   const todaySales = stats.find((s) => s.id === 'today-sales');
   const todayOrders = stats.find((s) => s.id === 'today-custom-orders');
   const currentCash = stats.find((s) => s.id === 'current-cash');
@@ -99,16 +99,26 @@ export default function DashboardPage() {
 
   return (
     <main className={styles.page}>
-      <PageHeader
-        eyebrow={greeting}
-        title={
-          <>
+      <section className={styles.heroHeader} aria-label="Greeting">
+        <div className={styles.heroText}>
+          <span className={styles.heroEyebrow}>
+            <span className={styles.heroEyebrowDot} aria-hidden="true" />
+            {greeting}
+          </span>
+          <h1 className={styles.heroTitle}>
             Welcome back,{' '}
             <span className={styles.heroHighlight}>{displayName}</span>
-          </>
-        }
-        description={dateText}
-      />
+          </h1>
+          <div className={styles.heroMeta}>
+            <span className={styles.headerDate}>
+              <span className={styles.headerDateIcon} aria-hidden="true">
+                <CalendarIcon size={13} strokeWidth={1.75} />
+              </span>
+              {dateText}
+            </span>
+          </div>
+        </div>
+      </section>
 
       <section
         className={styles.statsGrid}
@@ -120,7 +130,6 @@ export default function DashboardPage() {
             label="Today\u2019s sales"
             value={todaySales.value}
             kind="currency"
-            delta={todaySales.delta}
             trend={todaySales.trend}
             accent="info"
           />
@@ -131,7 +140,6 @@ export default function DashboardPage() {
             label="Today\u2019s custom orders"
             value={todayOrders.value}
             kind="number"
-            delta={todayOrders.delta}
             trend={todayOrders.trend}
             accent="warning"
           />
@@ -142,7 +150,6 @@ export default function DashboardPage() {
             label="Current cash"
             value={currentCash.value}
             kind="currency"
-            delta={currentCash.delta}
             trend={currentCash.trend}
             accent="success"
             emphasis="highlight"
@@ -154,7 +161,6 @@ export default function DashboardPage() {
             label="Total stock items"
             value={totalStock.value}
             kind="number"
-            delta={totalStock.delta}
             trend={totalStock.trend}
             accent="brand"
           />
@@ -166,7 +172,7 @@ export default function DashboardPage() {
           <ActivityFeed items={activity} loading={false} />
         </div>
         <div className={styles.splitAside}>
-          <QuickActions items={quickActions} />
+          <NotesWidget />
         </div>
       </section>
     </main>

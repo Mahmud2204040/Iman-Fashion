@@ -11,21 +11,22 @@ import {
   MenuIcon,
   RefreshIcon,
 } from '../../components/icons/DashboardIcon.jsx';
+import Logo from './Logo.jsx';
 import styles from './Topbar.module.css';
 
 /**
  * Topbar — sticky bar above the page content.
  *
- * Left:  mobile menu toggle (hidden >=768px).
- * Right: clock, role badge, refresh action, sign-out.
+ * Left:  mobile menu toggle + NI Fashion brand logo (the brand sits in
+ *        the topbar so the dashboard hero can stay text-only).
+ * Right: clock, refresh action, sign-out.
  *
  * The clock and date are bound to a `useTicker` hook so they keep
- * current time without a per-second render. The tab visibility hook
- * also catches up when the user returns from another tab.
+ * current time without a per-second render.
  */
 function Topbar({ onOpenMobileMenu }) {
   const navigate = useNavigate();
-  const { user, role, logout } = useAuth();
+  const { role, logout } = useAuth();
   const now = useTicker(60_000);
 
   async function handleLogout() {
@@ -66,6 +67,10 @@ function Topbar({ onOpenMobileMenu }) {
         >
           <MenuIcon size={20} />
         </button>
+
+        <div className={styles.topbarBrand} aria-label="NI Fashion">
+          <Logo tone="light" />
+        </div>
       </div>
 
       <div className={styles.topbarRight}>
@@ -102,15 +107,6 @@ function Topbar({ onOpenMobileMenu }) {
         >
           Sign out
         </Button>
-
-        {user && user.username ? (
-          <span
-            className={styles.topbarUser}
-            title={user.username}
-          >
-            {user.username}
-          </span>
-        ) : null}
       </div>
     </header>
   );

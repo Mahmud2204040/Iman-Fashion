@@ -16,6 +16,7 @@
   display: grid;
   grid-template-columns: var(--layout-sidebar-width) 1fr;
   min-height: 100vh;
+  height: 100vh;
   background: var(--color-background-tinted);
   background-image: var(--gradient-mesh, none);
 }
@@ -53,7 +54,7 @@
 .sidebarNav {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-5) var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-3) var(--space-4);
   scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
 
@@ -456,6 +457,22 @@
   text-transform: uppercase;
 }
 
+/* Light tone — used when the logo sits on a light page surface
+   (topbar, mobile dashboard hero) instead of the dark sidebar. */
+.logoLight .logoName {
+  color: var(--color-text);
+}
+
+.logoLight .logoSub {
+  color: var(--color-text-muted);
+}
+
+.logoLight .logoImage {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
 /* ---------- Topbar styles live in Topbar.module.css ---------- */
 
 /* ---------- Main / content ---------- */
@@ -464,14 +481,22 @@
   display: flex;
   flex-direction: column;
   min-width: 0; /* prevent grid blowout from wide children */
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .content {
-  flex: 1;
-  padding: var(--space-6) var(--space-6) var(--space-12);
+  flex: 1 1 auto;
+  padding: 0 var(--space-6) var(--space-6);
   max-width: var(--layout-content-max-width);
   width: 100%;
   margin: 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* ---------- Mobile drawer ---------- */
@@ -539,7 +564,7 @@
     padding: 0 var(--space-4);
   }
   .content {
-    padding: var(--space-4) var(--space-4) var(--space-12);
+    padding: 0 var(--space-4) var(--space-12);
   }
 }
 

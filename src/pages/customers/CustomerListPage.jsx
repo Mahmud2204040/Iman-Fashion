@@ -23,7 +23,7 @@ import {
 } from '../../components/common/index.js';
 import { CustomerIcon } from '../../components/icons/DashboardIcon.jsx';
 import { getCustomers } from '../../services/customers/customerService.js';
-import { timeAgo } from '../../utils/format.js';
+import { formatExactDate } from '../../utils/format.js';
 import styles from './CustomerListPage.module.css';
 
 export default function CustomerListPage() {
@@ -75,7 +75,7 @@ export default function CustomerListPage() {
       <PageHeader
         eyebrow="Customers"
         title="Customer directory"
-        description="Browse, search, and open a customer to see sales, custom orders, and due summary."
+        description="Browse and search customers. Click a row to see their sales, custom orders, and due summary."
       />
 
       <div className={styles.controls}>
@@ -109,36 +109,104 @@ export default function CustomerListPage() {
           }
         />
       ) : (
-        <ul className={styles.list} aria-label="Customers">
-          {filtered.map((c) => (
-            <li key={c.id}>
-              <Link to={`/customers/${c.id}`} className={styles.row}>
-                <div className={styles.rowMain}>
-                  <span className={styles.name}>{c.name}</span>
-                  <span className={styles.meta}>
-                    {c.phone || 'No phone'} &middot; since{' '}
-                    {timeAgo(c.createdAt)}
-                  </span>
-                </div>
-                <div className={styles.rowSide}>
-                  <span className={styles.classBadge}>
-                    Class {c.currentClass || '—'}
-                  </span>
-                  <span
-                    className={[
-                      styles.statusBadge,
-                      c.isActive ? styles.statusActive : styles.statusInactive,
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    {c.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Desktop / tablet (≥769px): 6-column data table */}
+          <div className={styles.desktopTable}>
+            <div className={styles.tableCard}>
+              <table className={styles.table} aria-label="Customers">
+                <colgroup>
+                  <col className={styles.colCode} />
+                  <col className={styles.colName} />
+                  <col className={styles.colPhone} />
+                  <col className={styles.colAddress} />
+                  <col className={styles.colNote} />
+                  <col className={styles.colCreated} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col">Customer Code</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">Address</th>
+                    <th scope="col">Note</th>
+                    <th scope="col">Created At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((c) => (
+                    <tr key={c.id} className={styles.tableRow}>
+                      <td className={styles.codeCell}>
+                        <Link to={`/customers/${c.id}`} className={styles.codeLink}>
+                          {c.id}
+                        </Link>
+                      </td>
+                      <td className={styles.nameCell}>
+                        <Link to={`/customers/${c.id}`} className={styles.nameLink}>
+                          {c.name}
+                        </Link>
+                      </td>
+                      <td className={styles.phoneCell}>
+                        {c.phone || <span className={styles.muted}>—</span>}
+                      </td>
+                      <td className={styles.addressCell}>
+                        {c.address || <span className={styles.muted}>—</span>}
+                      </td>
+                      <td className={styles.noteCell}>
+                        {c.note || <span className={styles.muted}>—</span>}
+                      </td>
+                      <td className={styles.dateCell}>
+                        {formatExactDate(c.createdAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile (≤768px): stacked card list */}
+          <ul className={styles.mobileList} aria-label="Customers">
+            {filtered.map((c) => (
+              <li key={c.id} className={styles.mobileCard}>
+                <Link to={`/customers/${c.id}`} className={styles.mobileCardLink}>
+                  <div className={styles.mobileTopRow}>
+                    <span className={styles.mobileCodePill}>{c.id}</span>
+                    <span className={styles.mobileName}>{c.name}</span>
+                  </div>
+
+                  <div className={styles.mobileContact}>
+                    {c.phone && (
+                      <span className={styles.mobilePhone}>{c.phone}</span>
+                    )}
+                    {c.address && (
+                      <span className={styles.mobileAddress}>{c.address}</span>
+                    )}
+                    {!c.phone && !c.address && (
+                      <span className={styles.muted}>No contact info</span>
+                    )}
+                  </div>
+
+                  <div className={styles.mobileMeta}>
+                    {c.note && (
+                      <span className={styles.mobileNote}>
+                        <span className={styles.mobileMetaLabel}>Note</span>
+                        {c.note}
+                      </span>
+                    )}
+                    <span className={styles.mobileDate}>
+                      <span className={styles.mobileMetaLabel}>
+                        Created
+                      </span>
+                      <time dateTime={c.createdAt || undefined}>
+                        {formatExactDate(c.createdAt)}
+                      </time>
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </main>
   );

@@ -1,0 +1,109 @@
+/*
+ * NotesWidget — compact scratchpad for the dashboard aside.
+ *
+ * Sized to fit inside a 100vh dashboard without forcing the page to
+ * scroll. The textarea uses flex so it grows to fill the remaining
+ * vertical space when the parent column has room.
+ */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  /* On mobile: card sizes to its content. min-height:0 would let the
+     textarea grow beyond content and push the card tall. */
+  min-height: auto;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 1024px) {
+  .card {
+    /* On desktop: card stretches to match the activity feed height so
+       the textarea can flex to fill the available space. */
+    min-height: 0;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--gradient-brand);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.headerText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+}
+
+.textarea {
+  min-height: 90px;
+  resize: vertical;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-snug);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  /* Mobile default: textarea sizes to its content + min-height. */
+  flex: 0 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .textarea {
+    /* Desktop: stretch to fill the card so the two cards match height. */
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.hintError {
+  color: #b91c1c;
+  font-weight: var(--font-weight-semibold);
+}

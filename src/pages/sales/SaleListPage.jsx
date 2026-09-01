@@ -1,23 +1,30 @@
 /**
  * SaleListPage — Phase 5.
  *
- * Reads the recent sales list (mock service) and shows it as a
- * responsive list of rows. The page is intentionaly read-only —
- * new sales are created on /sales/new and full detail is on
- * /sales/:id.
+ * Premium sales history:
+ *   • Desktop / tablet: real <table> with a <colgroup>, so headers
+ *     and body cells share the exact same column widths.
+ *   • Mobile (< 720px): the table is hidden and each sale is shown
+ *     as a vertically stacked card so no field truncates.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
+  Card,
   EmptyState,
-  FormField,
-  Input,
+  PageHeader,
+  SearchInput,
   Spinner,
 } from '../../components/common/index.js';
 import { SaleIcon, SparklesIcon } from '../../components/icons/DashboardIcon.jsx';
 import { getSales, searchSalesByCode } from '../../services/sales/salesService.js';
-import { formatCurrency, timeAgo } from '../../utils/format.js';
+import {
+  formatCurrency,
+  formatExactDate,
+  formatExactDateTime,
+  formatExactTime,
+} from '../../utils/format.js';
 import styles from './SaleListPage.module.css';
 
 export default function SaleListPage() {
@@ -91,50 +98,48 @@ export default function SaleListPage() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}>Sales</span>
-          <h1 className={styles.title}>Recent sales</h1>
-          <p className={styles.subtitle}>
-            Latest completed sales, newest first. Click a row to see full
-            detail.
-          </p>
-        </div>
-        <Link to="/sales/new" className={styles.newSaleCta}>
-          <SparklesIcon size={16} />
-          <span>New sale</span>
-        </Link>
-      </header>
+      <PageHeader
+        eyebrow="Sales"
+        title="Sales history"
+        description="Every completed sale, newest first. Click any row to see the full invoice detail."
+        actions={
+          <Link to="/sales/new" className={styles.newSaleCta}>
+            <SparklesIcon size={16} strokeWidth={1.75} />
+            <span>New sale</span>
+          </Link>
+        }
+      />
 
-      <div className={styles.controls}>
-        <FormField label="Search">
-          {(controlProps) => (
-            <Input
-              {...controlProps}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setDeepResults(null);
-              }}
-              placeholder="Sales code or customer…"
-            />
-          )}
-        </FormField>
-        {query.trim() ? (
-          <button
-            type="button"
-            onClick={runDeepSearch}
-            className={styles.deepSearchBtn}
-          >
-            Search by code
-          </button>
-        ) : null}
-      </div>
+      <Card className={styles.controlsCard}>
+        <div className={styles.controls}>
+          <SearchInput
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setDeepResults(null);
+            }}
+            placeholder="Search by sales code or customer…"
+            aria-label="Search sales"
+          />
+          {query.trim() ? (
+            <button
+              type="button"
+              onClick={runDeepSearch}
+              className={styles.deepSearchBtn}
+            >
+              Search by code
+            </button>
+          ) : null}
+          <span className={styles.countChip} aria-live="polite">
+            {displayed.length} {displayed.length === 1 ? 'sale' : 'sales'}
+          </span>
+        </div>
+      </Card>
 
       {loading ? (
-        <div className={styles.loading} aria-busy="true">
+        <Card className={styles.statusCard}>
           <Spinner /> <span>Loading sales…</span>
-        </div>
+        </Card>
       ) : error ? (
         <p className={styles.error} role="alert">
           {error}
@@ -146,27 +151,109 @@ export default function SaleListPage() {
           description="When you complete a sale, it will show up here."
         />
       ) : (
-        <ul className={styles.list} aria-label="Sales">
-          {displayed.map((s) => (
-            <li key={s.id}>
-              <Link to={`/sales/${s.id}`} className={styles.row}>
-                <div className={styles.rowMain}>
-                  <span className={styles.code}>{s.salesCode}</span>
-                  <span className={styles.customer}>{s.customerName}</span>
-                </div>
-                <div className={styles.rowMeta}>
-                  <span className={styles.itemCount}>
-                    {s.items.length} item{s.items.length === 1 ? '' : 's'}
+        <Card className={styles.tableCard} padding="none">
+          {/* Desktop / tablet grid table.
+              Header row + each data row use the same 5-column grid
+              (1.5fr 2fr 1fr 1fr 1fr) so columns can never drift. */}
+          <div className={styles.tableWrap} role="table" aria-label="Sales">
+            <div className={styles.gridHeader} role="row">
+              <span role="columnheader">Sales ID</span>
+              <span role="columnheader">Customer name</span>
+              <span role="columnheader">Amount</span>
+              <span role="columnheader">Date</span>
+              <span role="columnheader">Time</span>
+            </div>
+
+            <ul className={styles.gridBody} role="rowgroup">
+              {displayed.map((s) => (
+                <li
+                  key={s.id}
+                  className={styles.dataRow}
+                  role="row"
+                >
+                  <div className={styles.gridCell} role="cell">
+                    <Link to={`/sales/${s.id}`} className={styles.cellLink}>
+                      <span className={styles.codePill}>{s.salesCode}</span>
+                    </Link>
+                  </div>
+                  <div className={styles.gridCell} role="cell">
+                    <Link to={`/sales/${s.id}`} className={styles.cellLink}>
+                      <span className={styles.customerName}>
+                        {s.customerName || 'Walk-in'}
+                      </span>
+                    </Link>
+                  </div>
+                  <div className={`${styles.gridCell} ${styles.alignRight}`} role="cell">
+                    <Link to={`/sales/${s.id}`} className={styles.cellLink}>
+                      <span className={styles.amount}>{formatCurrency(s.total)}</span>
+                    </Link>
+                  </div>
+                  <div className={styles.gridCell} role="cell">
+                    <Link to={`/sales/${s.id}`} className={styles.cellLink}>
+                      <time
+                        className={styles.dateValue}
+                        dateTime={s.createdAt || undefined}
+                        title={s.createdAt ? formatExactDate(s.createdAt) : ''}
+                      >
+                        {formatExactDate(s.createdAt)}
+                      </time>
+                    </Link>
+                  </div>
+                  <div className={`${styles.gridCell} ${styles.alignRight}`} role="cell">
+                    <Link to={`/sales/${s.id}`} className={styles.cellLink}>
+                      <time
+                        className={styles.timeValue}
+                        dateTime={s.createdAt || undefined}
+                        title={s.createdAt ? formatExactTime(s.createdAt) : ''}
+                      >
+                        {formatExactTime(s.createdAt)}
+                      </time>
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Mobile stacked card list */}
+          <ul className={styles.mobileList} aria-label="Sales">
+            {displayed.map((s) => (
+              <li key={s.id} className={styles.mobileCard}>
+                <Link to={`/sales/${s.id}`} className={styles.mobileCardLink}>
+                  {/* Top row — Sales ID pill (left) + Amount (right) */}
+                  <div className={styles.mobileTopRow}>
+                    <span className={styles.mobileCodePill}>{s.salesCode}</span>
+                    <span className={styles.mobileAmount}>
+                      {formatCurrency(s.total)}
+                    </span>
+                  </div>
+
+                  {/* Middle — Customer name, large & bold */}
+                  <span className={styles.mobileCustomer}>
+                    {s.customerName || 'Walk-in'}
                   </span>
-                  <span className={styles.total}>
-                    {formatCurrency(s.total)}
+
+                  {/* Bottom — Date · Time, muted, dot-separated */}
+                  <span className={styles.mobileDateTime}>
+                    <time
+                      dateTime={s.createdAt || undefined}
+                      title={s.createdAt ? formatExactDateTime(s.createdAt) : ''}
+                    >
+                      {formatExactDate(s.createdAt)}
+                    </time>
+                    <span className={styles.mobileDot} aria-hidden="true">·</span>
+                    <time
+                      dateTime={s.createdAt || undefined}
+                      title={s.createdAt ? formatExactDateTime(s.createdAt) : ''}
+                    >
+                      {formatExactTime(s.createdAt)}
+                    </time>
                   </span>
-                  <span className={styles.ago}>{timeAgo(s.createdAt)}</span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
     </main>
   );

@@ -134,3 +134,69 @@ export function timeAgo(iso, now = new Date()) {
   if (diffDay < 7) return `${diffDay}d ago`;
   return then.toLocaleDateString(DATE_FORMAT.locale, { day: 'numeric', month: 'short' });
 }
+
+/**
+ * Exact, locale-agnostic date + time stamp.
+ *
+ * Output: "02 Sep 2026, 10:30 AM" — used in tables/lists where a
+ * relative phrase ("8h ago") is too vague and a precise timestamp
+ * is required for traceability.
+ */
+export function formatExactDateTime(input) {
+  if (!input) return '—';
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return '—';
+  try {
+    const dateText = new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(d);
+    const timeText = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d);
+    return `${dateText}, ${timeText}`;
+  } catch {
+    return d.toISOString();
+  }
+}
+
+/**
+ * Exact date only — "02 Sep 2026". Use when the time is shown in
+ * a sibling column.
+ */
+export function formatExactDate(input) {
+  if (!input) return '—';
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+/**
+ * Exact time only — "10:30 AM". Use when the date is shown in a
+ * sibling column.
+ */
+export function formatExactTime(input) {
+  if (!input) return '—';
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return '—';
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).format(d);
+  } catch {
+    return d.toISOString().slice(11, 16);
+  }
+}

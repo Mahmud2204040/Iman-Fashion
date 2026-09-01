@@ -157,9 +157,10 @@
 }
 
 .brandLogo {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   color: #b45309;
+  object-fit: contain;
 }
 
 .brandHeaderLabel {

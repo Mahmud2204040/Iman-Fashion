@@ -213,30 +213,17 @@ export default function NewSalePage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerText}>
-          <span className={styles.eyebrow}>Sales</span>
           <h1 className={styles.title}>New sale</h1>
           <p className={styles.subtitle}>
             Search for a customer (or skip for walk-in), add products to the
             cart, then review and complete.
           </p>
         </div>
-        <div className={styles.headerStats}>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>Items in cart</span>
-            <span className={styles.statValue}>{cartCount}</span>
-          </div>
-          <div className={styles.stat}>
-            <span className={styles.statLabel}>Estimated total</span>
-            <span className={styles.statValue}>
-              {formatCurrency(cartTotal)}
-            </span>
-          </div>
-        </div>
       </header>
 
       <div className={styles.split}>
-        {/* ---- Left pane: Customer + Products ---- */}
-        <div className={styles.left}>
+        {/* ---- Column 1: Customer ---- */}
+        <div className={styles.pane}>
           <CustomerPane
             customer={customer}
             customerQuery={customerQuery}
@@ -247,7 +234,10 @@ export default function NewSalePage() {
             onClearCustomer={clearCustomer}
             onCreateClick={() => setShowCreate(true)}
           />
+        </div>
 
+        {/* ---- Column 2: Products ---- */}
+        <div className={styles.pane}>
           <ProductPane
             query={productQuery}
             setQuery={setProductQuery}
@@ -258,8 +248,8 @@ export default function NewSalePage() {
           />
         </div>
 
-        {/* ---- Right pane: Cart / Review ---- */}
-        <div className={styles.right}>
+        {/* ---- Column 3: Cart & review ---- */}
+        <div className={styles.pane}>
           <CartPane
             cart={cart}
             total={cartTotal}
@@ -310,7 +300,10 @@ function CustomerPane({
     <section className={styles.card} aria-labelledby="new-sale-customer">
       <header className={styles.cardHead}>
         <h2 id="new-sale-customer" className={styles.cardTitle}>
-          <CustomerIcon size={18} strokeWidth={1.75} /> Customer
+          <span className={styles.cardTitleIcon}>
+            <CustomerIcon size={18} strokeWidth={1.75} />
+          </span>
+          Customer
         </h2>
         {customer ? (
           <span className={styles.customerChip}>
@@ -382,14 +375,34 @@ function CustomerPane({
         </>
       ) : (
         <div className={styles.customerPicked}>
-          <div className={styles.pickedRow}>
-            <span className={styles.pickedLabel}>Name</span>
-            <span className={styles.pickedValue}>{customer.name}</span>
+          <div className={styles.pickedHero}>
+            <span className={styles.pickedAvatar} aria-hidden="true">
+              {(customer.name || '?').trim().charAt(0).toUpperCase()}
+            </span>
+            <div className={styles.pickedHeroText}>
+              <span className={styles.pickedHeroName}>{customer.name}</span>
+              <span className={styles.pickedHeroId}>ID #{customer.id}</span>
+            </div>
           </div>
-          <div className={styles.pickedRow}>
-            <span className={styles.pickedLabel}>Customer ID</span>
-            <span className={styles.pickedValueMuted}>{customer.id}</span>
-          </div>
+
+          <dl className={styles.pickedDetails}>
+            <div className={styles.pickedDetail}>
+              <dt className={styles.pickedLabel}>Phone</dt>
+              <dd className={styles.pickedValue}>
+                {customer.phone || <span className={styles.muted}>—</span>}
+              </dd>
+            </div>
+            <div className={styles.pickedDetail}>
+              <dt className={styles.pickedLabel}>Address</dt>
+              <dd className={styles.pickedValue}>
+                {customer.address || <span className={styles.muted}>—</span>}
+              </dd>
+            </div>
+            <div className={styles.pickedDetail}>
+              <dt className={styles.pickedLabel}>Customer ID</dt>
+              <dd className={styles.pickedValueMuted}>{customer.id}</dd>
+            </div>
+          </dl>
         </div>
       )}
     </section>
@@ -486,7 +499,10 @@ function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
     <section className={styles.card} aria-labelledby="new-sale-products">
       <header className={styles.cardHead}>
         <h2 id="new-sale-products" className={styles.cardTitle}>
-          <ProductIcon size={18} strokeWidth={1.75} /> Products
+          <span className={styles.cardTitleIcon}>
+            <ProductIcon size={18} strokeWidth={1.75} />
+          </span>
+          Products
         </h2>
         <span className={styles.cardHint}>Tap to add</span>
       </header>
@@ -573,21 +589,26 @@ function CartPane({
     <section className={[styles.card, styles.cartCard].join(' ')} aria-label="Cart">
       <header className={styles.cardHead}>
         <h2 className={styles.cardTitle}>
-          <SaleIcon size={18} strokeWidth={1.75} /> Cart & review
+          <span className={styles.cardTitleIcon}>
+            <SaleIcon size={18} strokeWidth={1.75} />
+          </span>
+          Cart & review
         </h2>
         <span className={styles.cardHint}>
           {cart.length} line{cart.length === 1 ? '' : 's'}
         </span>
       </header>
 
-      {cart.length === 0 ? (
-        <EmptyState
-          icon={<BoxIcon size={28} />}
-          title="Cart is empty"
-          description="Add products from the left to start the sale."
-        />
-      ) : (
-        <>
+      <div className={styles.cartBody}>
+        {cart.length === 0 ? (
+          <div className={styles.cartEmpty}>
+            <EmptyState
+              icon={<BoxIcon size={28} />}
+              title="Cart is empty"
+              description="Add products from the left to start the sale."
+            />
+          </div>
+        ) : (
           <ul className={styles.cartList}>
             {cart.map((line) => {
               const lineTotal = cartLineTotal(line);
@@ -650,32 +671,32 @@ function CartPane({
               );
             })}
           </ul>
+        )}
+      </div>
 
-          <div className={styles.cartFooter}>
-            <div className={styles.totalRow}>
-              <span className={styles.totalLabel}>Total</span>
-              <span className={styles.totalValue}>{formatCurrency(total)}</span>
-            </div>
-            {error ? (
-              <p className={styles.cartError} role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button
-              variant="primary"
-              fullWidth
-              size="lg"
-              leftIcon={<SparklesIcon size={16} />}
-              onClick={onComplete}
-              disabled={!canComplete}
-              loading={submitting}
-              loadingText="Completing…"
-            >
-              Complete sale
-            </Button>
-          </div>
-        </>
-      )}
+      <div className={styles.cartFooter}>
+        <div className={styles.totalRow}>
+          <span className={styles.totalLabel}>Total</span>
+          <span className={styles.totalValue}>{formatCurrency(total)}</span>
+        </div>
+        {error ? (
+          <p className={styles.cartError} role="alert">
+            {error}
+          </p>
+        ) : null}
+        <Button
+          variant="primary"
+          fullWidth
+          size="lg"
+          leftIcon={<SparklesIcon size={16} />}
+          onClick={onComplete}
+          disabled={!canComplete}
+          loading={submitting}
+          loadingText="Completing…"
+        >
+          Complete sale
+        </Button>
+      </div>
     </section>
   );
 }

@@ -6,6 +6,7 @@ import FormField from '../../components/common/FormField/FormField.jsx';
 import Input from '../../components/common/Input/Input.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import loginPhoto from '../../assets/login_page photo.png';
+import logoImage from '../../assets/Logo.png';
 import styles from './LoginPage.module.css';
 
 /**
@@ -183,24 +184,13 @@ export default function LoginPage() {
         {/* ---- Right pane: form ---- */}
         <div className={styles.formPane}>
           <div className={styles.brandHeader}>
-            <svg
-              className={styles.brandLogo}
-              viewBox="0 0 32 32"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <img
+              src={logoImage}
+              alt=""
               aria-hidden="true"
-            >
-              {/* School dress: shoulders, collar, A-line skirt, hem line */}
-              <path d="M11 4h10" />
-              <path d="M13 4l-1 3 4 1 4-1-1-3" />
-              <path d="M9 11l3-4 4 1 4-1 3 4" />
-              <path d="M9 11l-3 16h20l-3-16" />
-              <path d="M13 12c1 4 5 4 6 0" />
-              <path d="M7 24h18" />
-            </svg>
+              className={styles.brandLogo}
+              draggable="false"
+            />
             <span className={styles.brandHeaderLabel}>NI FASHION</span>
           </div>
 

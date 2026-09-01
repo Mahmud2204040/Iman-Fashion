@@ -11,10 +11,24 @@ import logoImage from '../../assets/Logo.png';
  *
  * `compact` (default false) collapses the wordmark to just the mark,
  * used by the mobile drawer header to save vertical space.
+ *
+ * `tone` ("dark" default / "light") flips the wordmark + sub-line colors
+ * so the logo can sit on either a dark sidebar or a light page surface.
+ *
+ * `className` is forwarded to the outer wrapper so the consumer can
+ * scope additional styling (e.g. mobile-only visibility).
  */
-function Logo({ compact = false }) {
+function Logo({ compact = false, tone = 'dark', className = '' }) {
+  const toneClass = tone === 'light' ? styles.logoLight : '';
+  const wrapperClass = [
+    compact ? styles.logoCompact : styles.logo,
+    toneClass,
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
-    <div className={compact ? styles.logoCompact : styles.logo}>
+    <div className={wrapperClass}>
       <img
         src={logoImage}
         alt=""

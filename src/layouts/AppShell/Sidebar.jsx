@@ -79,7 +79,7 @@ function Sidebar({ onNavigate }) {
   return (
     <aside className={styles.sidebar} aria-label="Primary navigation">
       <div className={styles.sidebarHeader}>
-        <Logo compact />
+        <Logo />
       </div>
 
       <nav className={styles.sidebarNav}>
