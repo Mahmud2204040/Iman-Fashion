@@ -1,6 +1,6 @@
-# NI Fashion
+# Iman Fashion
 
-NI Fashion is an internal clothing-shop management application for an Owner and Employees.
+Iman Fashion is an internal clothing-shop management application for an Owner and Employees.
 
 **Current state:** React/Vite login, session restore, sign-out, profile passwords and Owner-managed Employee accounts use the Express/Prisma API in [`api/`](api/README.md). The backend has first-pass business APIs, migrations and local database tests; sales, customers, stock, cash and report screens still use in-memory mock services rather than those APIs. Hosted deployment and real-data acceptance remain open.
 

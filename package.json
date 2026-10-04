@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "NI Fashion shop management — API-backed accounts with mock business modules.",
+  "description": "Iman Fashion shop management — API-backed accounts with mock business modules.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

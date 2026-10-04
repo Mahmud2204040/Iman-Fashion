@@ -6,7 +6,7 @@
  */
 
 /**
- * Currency code. NI Fashion is a Bangladesh shop; the local currency is
+ * Currency code. Iman Fashion is a Bangladesh shop; the local currency is
  * BDT (৳). Locale is en-BD so formatting matches local conventions.
  */
 export const CURRENCY = {

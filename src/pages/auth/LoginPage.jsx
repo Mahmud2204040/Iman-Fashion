@@ -8,7 +8,7 @@ import Input from '../../components/common/Input/Input.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { ROLES } from '../../constants/roles.js';
-import loginPhoto from '../../assets/login_page photo.png';
+import loginPhoto from '../../assets/login_page_iman_fashion.png';
 import logoImage from '../../assets/Logo.png';
 import styles from './LoginPage.module.css';
 
@@ -110,7 +110,7 @@ export default function LoginPage() {
           />
           <div className={styles.introOverlay} />
           <div className={styles.introContent}>
-            <div className={styles.brandTitle}><T>NI FASHION</T></div>
+            <div className={styles.brandTitle}><T>IMAN FASHION</T></div>
             <a className={styles.brandSubtitle} href="#shop-management">
               {t('Shop Management')}
             </a>
@@ -189,13 +189,13 @@ export default function LoginPage() {
               className={styles.brandLogo}
               draggable="false"
             />
-            <span className={styles.brandHeaderLabel}><T>NI FASHION</T></span>
+            <span className={styles.brandHeaderLabel}><T>IMAN FASHION</T></span>
           </div>
 
           <h1 id="login-title" className={styles.title}>
             {t('Welcome back')}
           </h1>
-          <p className={styles.subtitle}>{t('Sign in to continue to NI Fashion')}</p>
+          <p className={styles.subtitle}>{t('Sign in to continue to Iman Fashion')}</p>
 
           <div className={styles.banner} role="note">
             <svg
@@ -387,7 +387,7 @@ export default function LoginPage() {
           </form>
 
           <footer className={styles.footer}><T>
-            © 2026 NI Fashion. All rights reserved.
+            © 2026 Iman Fashion. All rights reserved.
           </T></footer>
         </div>
       </section>

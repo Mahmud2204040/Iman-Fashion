@@ -5,7 +5,7 @@ Business behaviour: [Requirements](REQUIREMENTS.md). Access: [Role Permissions](
 
 ## Scope and stack
 
-- Internal, mobile-responsive NI Fashion shop management.
+- Internal, mobile-responsive Iman Fashion shop management.
 - Frontend: React 18, Vite 5, JavaScript, React Router, CSS Modules/plain CSS.
 - Backend target: Node.js, Express, TypeScript (for Prisma 7 generated client), Prisma, PostgreSQL.
 - Authentication target: hashed passwords and revocable database-backed cookie sessions; never deploy mock credentials. See E009 in the decision register.

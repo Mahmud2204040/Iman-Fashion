@@ -1,6 +1,6 @@
 # Deployment plan — backend first
 
-Updated: 2026-10-04 (Asia/Dhaka). Status: provider access in progress; not deployed.
+Updated: 2026-10-05 (Asia/Dhaka). Status: provider access in progress; not deployed.
 
 This plan records the current sequence: build and deploy the Express API on **Northflank Pay-as-you-go**, connect it to **Aiven Free PostgreSQL**, and store supplier receipt proofs in **Cloudinary Free**. Deploying the React/Vite frontend to Vercel is a later step. No provider resource, database, API, or production account has been created by this document.
 
@@ -65,3 +65,5 @@ After backend acceptance, deploy the React/Vite build to Vercel Pro. Use a Verce
 ## Current status
 
 The local Express/Prisma API now includes first-pass business routes, sale correction, immutable financial events and Cloudinary receipt code; see [`api/`](../api/README.md) for verification and remaining limitations. On 2026-10-04, the signed-in Aiven console showed Free PostgreSQL service `pg-f67b92b` in project `mahmud47bd-6758`, DigitalOcean `blr`, **Running** after its initial build; its credentials were not opened. A signed-in Cloudinary console and signed-in Northflank account were also observed, but Cloudinary's plan/authenticated upload-download and Northflank service configuration remain unverified. The Northflank in-app browser control repeatedly timed out; official CLI browser authorization succeeded without passing a token through chat. The first attempt to create `NI Fashion Pilot` in `asia-south-delhi` using [`api/deploy/northflank-project.json`](../api/deploy/northflank-project.json) was rejected with HTTP 409, “Region does not support free projects.” No project or paid runtime was created. The Owner must set up Northflank Pay-as-you-go billing/payment method and a billing alert before retrying this region. No hosted migration or API deployment has been verified. Vercel remains deferred. Use no real business data in these pilot resources.
+
+On 2026-10-05, the Owner renamed the application **Iman Fashion**. A supplied Aiven screenshot shows the running service named `iman-fashion-database` and a database named `iman-fashion` alongside `defaultdb`. Use `iman-fashion` as the hosted database name in the Northflank `DATABASE_URL`; do not create a second `ni_fashion` database for this pilot. Existing local development database names, package names and storage keys remain technical identifiers. This screenshot does not verify credentials, schema migration or API connectivity.

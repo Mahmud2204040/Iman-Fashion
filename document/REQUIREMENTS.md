@@ -5,7 +5,7 @@ Permissions are defined in [Role Permissions](ROLE_PERMISSIONS.md); user decisio
 
 ## Product boundary
 
-NI Fashion is an internal shop application for clothing/accessories, customer families, direct sales, special orders, supplier accounting, basic stock and cash management. The frontend must work on mobile, tablet and desktop. Historical notebook records may be entered gradually.
+Iman Fashion is an internal shop application for clothing/accessories, customer families, direct sales, special orders, supplier accounting, basic stock and cash management. The frontend must work on mobile, tablet and desktop. Historical notebook records may be entered gradually.
 
 V1 excludes ecommerce/customer login, online checkout, product/purchase returns, manufacturing, material consumption, bill of materials, payroll, a general customer credit ledger, school-wise inventory, dedicated measurement fields and automatic digital receipt printing.
 

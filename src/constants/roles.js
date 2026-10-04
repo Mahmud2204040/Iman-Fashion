@@ -1,5 +1,5 @@
 /**
- * Role constants for NI Fashion.
+ * Role constants for Iman Fashion.
  *
  * Per PROJECT_RULES.md §6 and REQUIREMENTS.md §4, the only roles in this
  * application are OWNER and EMPLOYEE. Do NOT introduce an ADMIN role.

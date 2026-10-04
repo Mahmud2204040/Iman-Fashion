@@ -18,7 +18,7 @@ export default class ErrorBoundary extends Component {
     if (!this.state.failed) return this.props.children;
     return (
       <main style={{ maxWidth: 560, margin: '12vh auto', padding: 24 }} role="alert">
-        <p style={{ color: '#ad783e', fontWeight: 700 }}>NI Fashion</p>
+        <p style={{ color: '#ad783e', fontWeight: 700 }}>Iman Fashion</p>
         <h1>This page could not be displayed</h1>
         <p>Your data was not submitted. You can retry this page or return to your home screen.</p>
         <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>

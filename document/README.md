@@ -1,10 +1,10 @@
-# NI Fashion documentation
+# Iman Fashion documentation
 
-Updated: 2026-10-04 (Asia/Dhaka). Status: active documentation baseline.
+Updated: 2026-10-05 (Asia/Dhaka). Status: active documentation baseline.
 
-উদ্দেশ্য: NI Fashion-এর নিয়ম, workflow, development plan এবং বাস্তব progress এক জায়গা থেকে বোঝা। এই folder-এর পরিকল্পনা অনুসরণ করে frontend যাচাই, তারপর backend ও deployment সম্পন্ন করতে হবে।
+উদ্দেশ্য: Iman Fashion-এর নিয়ম, workflow, development plan এবং বাস্তব progress এক জায়গা থেকে বোঝা। এই folder-এর পরিকল্পনা অনুসরণ করে frontend যাচাই, তারপর backend ও deployment সম্পন্ন করতে হবে।
 
-NI Fashion is an internal shop application, not an online storefront. It supports school/college clothing and accessories, customers and children, direct sales, custom orders, stock, suppliers, purchases, raw-material records, expenses, shop cash and Owner reports.
+Iman Fashion is an internal shop application, not an online storefront. It supports school/college clothing and accessories, customers and children, direct sales, custom orders, stock, suppliers, purchases, raw-material records, expenses, shop cash and Owner reports.
 
 ## Read in this order
 

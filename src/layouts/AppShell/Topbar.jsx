@@ -16,7 +16,7 @@ import styles from './Topbar.module.css';
 /**
  * Topbar — sticky bar above the page content.
  *
- * Left:  mobile menu toggle + NI Fashion brand logo (the brand sits in
+ * Left:  mobile menu toggle + Iman Fashion brand logo (the brand sits in
  *        the topbar so the dashboard hero can stay text-only).
  * Right: clock, refresh action, sign-out.
  *
@@ -71,11 +71,11 @@ function Topbar({ onOpenMobileMenu, menuButtonRef }) {
           <MenuIcon size={20} />
         </button>
 
-        <div className={styles.topbarBrand} aria-label="NI Fashion">
+        <div className={styles.topbarBrand} aria-label="Iman Fashion">
           <Logo tone="light" />
         </div>
         <nav className={styles.breadcrumb} aria-label="Breadcrumb">
-          <span>NI FASHION</span>
+          <span>IMAN FASHION</span>
           {crumbs.map((crumb) => <span key={crumb}>{t(crumb)}</span>)}
         </nav>
       </div>

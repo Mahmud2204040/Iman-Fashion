@@ -8,7 +8,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.APP_ORIGINS) {
 }
 
 const server = createApp(prisma).listen(port, '0.0.0.0', () => {
-  console.log(`NI Fashion API listening on ${port}`);
+  console.log(`Iman Fashion API listening on ${port}`);
 });
 
 async function shutdown() {

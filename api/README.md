@@ -1,4 +1,4 @@
-# NI Fashion API — local business backend
+# Iman Fashion API — local business backend
 
 This Express/Prisma service implements database-backed auth/accounts, business-domain routes, Owner-only sale void/replacement, append-only financial events, 25 report routes and Cloudinary receipt handling. The React frontend currently uses the account endpoints; business screens still use mock services and are **not yet integrated** with these APIs. Hosted pilot deployment and real-data acceptance are outstanding.
 
@@ -47,6 +47,8 @@ The migrations contain PostgreSQL CHECK constraints, composite purchase/payment/
 All account writes require the session's `X-CSRF-Token`. Password, username and active-status changes revoke affected sessions; an account version also invalidates any session created during a concurrent change. Only Employee accounts can be modified through `/users/:id`. Credentials and password hashes are never returned in account responses.
 
 In production, cookie is Secure and `__Host-` prefixed. Keep frontend and API under the **same site** (for example `app.example.com` and `api.example.com`) for the default `SameSite=Lax` cookie; separate `*.vercel.app` and `*.northflank.app` origins will not support credentialed cross-site XHR reliably. Set `APP_ORIGINS` to the exact allowed browser origins, never `*`. `TRUST_PROXY_HOPS` may be set to the known number of Northflank reverse proxies after verification.
+
+If the pilot Owner loses the bootstrap password, set a new 12–128 character `OWNER_RESET_PASSWORD` as a **temporary runtime secret on the API service**, restart it, and run `npm run owner:reset` once in that service's shell. The command resets only the existing `owner` account (or `OWNER_RESET_USERNAME` if explicitly set), refuses non-Owner accounts, hashes the new password, increments the account auth version, and deletes all sessions in one database transaction. It does not print the password. Remove the temporary secret and restart the service immediately afterward; never pass the password as a shell argument or paste it into chat. No public password-reset endpoint is exposed.
 
 The login throttle is currently process-local and only a pilot safeguard. Before handling live customer or financial data, complete frontend business integration, shared rate limiting, broader authorization/security review, hosted backup/restore test, operational monitoring and the real-shop release gate. Never migrate browser mock fixtures as real business records without reconciliation.
 

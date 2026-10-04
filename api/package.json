@@ -14,7 +14,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "owner:bootstrap": "tsx src/bootstrap-owner.ts"
+    "owner:bootstrap": "tsx src/bootstrap-owner.ts",
+    "owner:reset": "node dist/reset-owner-password.js"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
