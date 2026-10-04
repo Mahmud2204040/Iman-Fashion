@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * SupplierDetailPage — Phase 9.
  *
@@ -12,7 +13,7 @@
  * getAllSupplierPayments(), each row paired with the supplier-side CASH_OUT.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import {
   Badge,
@@ -34,7 +35,8 @@ import {
   updateSupplier,
 } from '../../services/suppliers/supplierService.js';
 import { getPurchasesBySupplier } from '../../services/purchases/purchaseService.js';
-import { formatCurrency, timeAgo } from '../../utils/format.js';
+import { formatCount, formatCurrency, timeAgo } from '../../utils/format.js';
+import { cashBusinessDate } from '../../utils/cashDate.js';
 import styles from './SupplierDetailPage.module.css';
 
 export default function SupplierDetailPage() {
@@ -55,6 +57,8 @@ export default function SupplierDetailPage() {
   const [confirmReactivate, setConfirmReactivate] = useState(false);
 
   const [paymentFilter, setPaymentFilter] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState({});
 
   function reload() {
     setLoading(true);
@@ -103,14 +107,22 @@ export default function SupplierDetailPage() {
     return (
       <main className={styles.page} aria-busy="true">
         <div className={styles.loading}>
-          <Spinner /> <span>Loading supplier…</span>
+          <Spinner /> <span><T>Loading supplier…</T></span>
         </div>
       </main>
     );
   }
 
   if (error === 'not-found' || !supplier) {
-    return <Navigate to="/suppliers" replace />;
+    return <main className={styles.page}><p role="alert">{error === 'not-found' ? 'Supplier not found.' : error || 'Supplier unavailable.'}</p><Link to="/suppliers"><T>← All suppliers</T></Link><Button onClick={reload}><T>Retry</T></Button></main>;
+  }
+
+  async function saveProfile(event) {
+    event.preventDefault();
+    try {
+      const updated = await updateSupplier(supplier.id, editDraft, { actor: { username: user?.username, role } });
+      setSupplier(updated); setEditOpen(false); setError('');
+    } catch (err) { setError(err?.message || 'Could not save supplier.'); }
   }
 
   async function saveNotes() {
@@ -144,12 +156,12 @@ export default function SupplierDetailPage() {
 
   return (
     <main className={styles.page}>
-      <Link to="/suppliers" className={styles.backLink}>
+      <Link to="/suppliers" className={styles.backLink}><T>
         ← All suppliers
-      </Link>
+      </T></Link>
 
       <PageHeader
-        eyebrow={supplier.category || 'Supplier'}
+        eyebrow="Supplier"
         title={supplier.name}
         description={`${supplier.contactPerson || 'No contact'} · ${supplier.phone}`}
         actions={
@@ -162,20 +174,26 @@ export default function SupplierDetailPage() {
                 <Button
                   variant="ghost"
                   onClick={() => setConfirmDeactivate(true)}
-                >
+                ><T>
                   Deactivate
-                </Button>
+                </T></Button>
               ) : (
                 <Button
                   variant="ghost"
                   onClick={() => setConfirmReactivate(true)}
-                >
+                ><T>
                   Reactivate
-                </Button>
+                </T></Button>
               ))}
           </div>
         }
       />
+      {error ? <p role="alert"><T>{error}</T></p> : null}
+      {isOwner ? <div style={{ marginBottom: 12 }}><Button variant="secondary" onClick={() => { setEditDraft({ name: supplier.name, contactPerson: supplier.contactPerson || '', phone: supplier.phone, email: supplier.email || '', address: supplier.address || '' }); setEditOpen((open) => !open); }}>{editOpen ? 'Close edit' : 'Edit supplier details'}</Button></div> : null}
+      {editOpen ? <Card className={styles.sectionCard}><h2><T>Edit supplier</T></h2><form onSubmit={saveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 }}>
+        {['name', 'contactPerson', 'phone', 'email', 'address'].map((field) => <label key={field} style={{ display: 'grid', gap: 6 }}>{field.replace(/([A-Z])/g, ' $1')}<input required={field === 'name' || field === 'phone'} value={editDraft[field] || ''} onChange={(event) => setEditDraft((current) => ({ ...current, [field]: event.target.value }))} style={{ padding: 10, borderRadius: 8, border: '1px solid #d5deea' }} /></label>)}
+        <div style={{ alignSelf: 'end' }}><Button type="submit"><T>Save details</T></Button></div>
+      </form></Card> : null}
 
       <div className={styles.summary}>
         <Card className={styles.profileCard}>
@@ -184,29 +202,31 @@ export default function SupplierDetailPage() {
               <SupplierIcon size={22} strokeWidth={1.7} />
             </div>
             <div className={styles.profileText}>
-              <h2 className={styles.profileTitle}>Profile</h2>
-              <span className={styles.profileMeta}>
-                Added {timeAgo(supplier.createdAt)} ·{' '}
-                {purchases.length} purchase
-                {purchases.length === 1 ? '' : 's'} on record
-              </span>
+              <h2 className={styles.profileTitle}><T>Profile</T></h2>
+              <span className={styles.profileMeta}><T>
+                Added </T>{timeAgo(supplier.createdAt)} ·{' '}
+                {formatCount(purchases.length, 'purchase', 'purchases', 'ক্রয়')}<T> on record
+              </T></span>
             </div>
           </div>
           <dl className={styles.fieldsList}>
             <div className={styles.fieldRow}>
-              <dt>Contact</dt>
+              <dt><T>Code</T></dt><dd>{supplier.supplierCode}</dd>
+            </div>
+            <div className={styles.fieldRow}>
+              <dt><T>Contact</T></dt>
               <dd>{supplier.contactPerson || '—'}</dd>
             </div>
             <div className={styles.fieldRow}>
-              <dt>Phone</dt>
+              <dt><T>Phone</T></dt>
               <dd className={styles.mono}>{supplier.phone}</dd>
             </div>
             <div className={styles.fieldRow}>
-              <dt>Email</dt>
+              <dt><T>Email</T></dt>
               <dd>{supplier.email || '—'}</dd>
             </div>
             <div className={styles.fieldRow}>
-              <dt>Address</dt>
+              <dt><T>Address</T></dt>
               <dd>{supplier.address || '—'}</dd>
             </div>
           </dl>
@@ -214,18 +234,17 @@ export default function SupplierDetailPage() {
 
         <Card className={styles.totalsCard}>
           <div className={styles.totalBlock}>
-            <span className={styles.totalLabel}>Purchases</span>
+            <span className={styles.totalLabel}><T>Purchases</T></span>
             <span className={styles.totalValue}>
               {formatCurrency(totals?.purchasesTotal || 0)}
             </span>
-            <span className={styles.totalSub}>
-              across {totals?.purchaseCount || 0} purchase
-              {(totals?.purchaseCount || 0) === 1 ? '' : 's'}
+            <span className={styles.totalSub}><T>
+              across </T>{formatCount(totals?.purchaseCount || 0, 'purchase', 'purchases', 'ক্রয়')}
             </span>
           </div>
           <div className={styles.divider} />
           <div className={styles.totalBlock}>
-            <span className={styles.totalLabel}>Paid</span>
+            <span className={styles.totalLabel}><T>Paid</T></span>
             <span className={styles.totalValuePaid}>
               {formatCurrency(totals?.paidTotal || 0)}
             </span>
@@ -238,7 +257,7 @@ export default function SupplierDetailPage() {
                 : styles.totalBlock
             }
           >
-            <span className={styles.totalLabel}>Due</span>
+            <span className={styles.totalLabel}><T>Due</T></span>
             <span
               className={
                 (totals?.dueTotal || 0) > 0
@@ -249,7 +268,7 @@ export default function SupplierDetailPage() {
               {formatCurrency(totals?.dueTotal || 0)}
             </span>
             {(totals?.dueTotal || 0) > 0 && (
-              <span className={styles.dueChip}>Outstanding</span>
+              <span className={styles.dueChip}><T>Outstanding</T></span>
             )}
           </div>
         </Card>
@@ -258,10 +277,10 @@ export default function SupplierDetailPage() {
       {isOwner && (
         <Card className={styles.notesCard}>
           <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>Internal notes</h2>
-            <span className={styles.sectionMeta}>
+            <h2 className={styles.sectionTitle}><T>Internal notes</T></h2>
+            <span className={styles.sectionMeta}><T>
               Visible to all owners.
-            </span>
+            </T></span>
           </div>
           <Textarea
             rows={3}
@@ -295,15 +314,15 @@ export default function SupplierDetailPage() {
 
       <Card className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Purchases</h2>
+          <h2 className={styles.sectionTitle}><T>Purchases</T></h2>
           <span className={styles.sectionMeta}>
-            {purchases.length} purchase{purchases.length === 1 ? '' : 's'}
+            {formatCount(purchases.length, 'purchase', 'purchases', 'ক্রয়')}
           </span>
         </div>
         {purchases.length === 0 ? (
-          <p className={styles.emptyText}>
+          <p className={styles.emptyText}><T>
             No purchases yet for this supplier.
-          </p>
+          </T></p>
         ) : (
           <ul className={styles.purchaseList}>
             {purchases.map((p) => (
@@ -315,9 +334,8 @@ export default function SupplierDetailPage() {
                   <div className={styles.purchaseLeft}>
                     <span className={styles.purchaseCode}>{p.code}</span>
                     <span className={styles.purchaseMeta}>
-                      {p.items.length} item
-                      {p.items.length === 1 ? '' : 's'} · ordered{' '}
-                      {timeAgo(p.orderedAt)}
+                      {formatCount(p.items.length, 'item', 'items', 'আইটেম')}{' · '}<T>Purchase date</T>{' '}
+                      {cashBusinessDate(p.orderedAt)}
                     </span>
                   </div>
                   <Badge
@@ -337,8 +355,8 @@ export default function SupplierDetailPage() {
                     <span className={styles.purchaseTotal}>
                       {formatCurrency(p.total)}
                     </span>
-                    <span className={styles.purchaseDue}>
-                      Due {formatCurrency(Math.max(p.total - p.paidTotal, 0))}
+                    <span className={styles.purchaseDue}><T>
+                      Due </T>{formatCurrency(p.status === 'CANCELLED' ? 0 : Math.max(p.total - p.paidTotal, 0))}
                     </span>
                   </div>
                 </Link>
@@ -350,24 +368,26 @@ export default function SupplierDetailPage() {
 
       <Card className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Payments to this supplier</h2>
+          <h2 className={styles.sectionTitle}><T>Payments to this supplier</T></h2>
           <span className={styles.sectionMeta}>
-            {allPayments.length} record
-            {allPayments.length === 1 ? '' : 's'} · paired CASH_OUT track only
-          </span>
+            {formatCount(allPayments.length, 'record', 'records', 'রেকর্ড')}<T> · separate from shop cash
+          </T></span>
         </div>
-        <FormField label="Search payments" hideLabel>
-          <SearchInput
-            value={paymentFilter}
-            onChange={setPaymentFilter}
-            placeholder="Search by purchase code, method, or note…"
-          />
+        <FormField label="Search payments" htmlFor="supplier-payment-search">
+          {(controlProps) => (
+            <SearchInput
+              {...controlProps}
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              placeholder="Search by purchase code, method, or note…"
+            />
+          )}
         </FormField>
         {filteredPayments.length === 0 ? (
           <p className={styles.emptyText}>
             {allPayments.length === 0
-              ? 'No payments recorded yet.'
-              : 'No payments match the filter.'}
+              ? <T>No payments recorded yet.</T>
+              : <T>No payments match the filter.</T>}
           </p>
         ) : (
           <ol className={styles.paymentList}>
@@ -379,14 +399,7 @@ export default function SupplierDetailPage() {
                   </span>
                   <span className={styles.paymentMeta}>
                     {row.method || 'CASH'} · {timeAgo(row.createdAt)}{' '}
-                    {row.cashOutId ? (
-                      <>
-                        · paired{' '}
-                        <code className={styles.cashOutId}>
-                          {row.cashOutId}
-                        </code>
-                      </>
-                    ) : null}
+                    {' · '}{row.id}
                   </span>
                   {row.note && (
                     <span className={styles.paymentNote}>{row.note}</span>

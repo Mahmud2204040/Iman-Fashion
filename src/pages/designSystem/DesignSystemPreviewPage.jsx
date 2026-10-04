@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 import { useState } from 'react';
 import {
   Button,
@@ -69,31 +70,31 @@ function DesignSystemPreviewPage() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <span className={styles.devBadge}>Development Only</span>
-        <h1 className={styles.title}>Design System Preview</h1>
-        <p className={styles.subtitle}>
+        <span className={styles.devBadge}><T>Development Only</T></span>
+        <h1 className={styles.title}><T>Design System Preview</T></h1>
+        <p className={styles.subtitle}><T>
           Sanity-check for tokens and common components. Not a real application page.
-        </p>
+        </T></p>
       </header>
 
       <Section title="Buttons">
         <div className={styles.row}>
-          <Button variant="primary">Primary</Button>
-          <Button variant="secondary">Secondary</Button>
-          <Button variant="danger">Danger</Button>
-          <Button variant="ghost">Ghost</Button>
+          <Button variant="primary"><T>Primary</T></Button>
+          <Button variant="secondary"><T>Secondary</T></Button>
+          <Button variant="danger"><T>Danger</T></Button>
+          <Button variant="ghost"><T>Ghost</T></Button>
         </div>
         <div className={styles.row}>
-          <Button size="sm">Small</Button>
-          <Button size="md">Medium</Button>
-          <Button size="lg">Large</Button>
+          <Button size="sm"><T>Small</T></Button>
+          <Button size="md"><T>Medium</T></Button>
+          <Button size="lg"><T>Large</T></Button>
         </div>
         <div className={styles.row}>
-          <Button disabled>Disabled</Button>
-          <Button loading={loadingBtn} loadingText="Saving…" onClick={handleLoadingClick}>
+          <Button disabled><T>Disabled</T></Button>
+          <Button loading={loadingBtn} loadingText="Saving…" onClick={handleLoadingClick}><T>
             Click to load
-          </Button>
-          <Button fullWidth>Full-width</Button>
+          </T></Button>
+          <Button fullWidth><T>Full-width</T></Button>
         </div>
       </Section>
 
@@ -148,20 +149,20 @@ function DesignSystemPreviewPage() {
 
       <Section title="Badges">
         <div className={styles.row}>
-          <Badge variant="success">Success</Badge>
-          <Badge variant="warning">Warning</Badge>
-          <Badge variant="danger">Danger</Badge>
-          <Badge variant="info">Info</Badge>
-          <Badge variant="neutral">Neutral</Badge>
+          <Badge variant="success"><T>Success</T></Badge>
+          <Badge variant="warning"><T>Warning</T></Badge>
+          <Badge variant="danger"><T>Danger</T></Badge>
+          <Badge variant="info"><T>Info</T></Badge>
+          <Badge variant="neutral"><T>Neutral</T></Badge>
         </div>
         <div className={styles.row}>
-          <Badge variant="success" size="sm">Paid</Badge>
-          <Badge variant="warning" size="sm">Pending</Badge>
-          <Badge variant="info" size="sm">Ready</Badge>
-          <Badge variant="success" size="sm">Delivered</Badge>
-          <Badge variant="danger" size="sm">Cancelled</Badge>
-          <Badge variant="neutral" size="sm">Active</Badge>
-          <Badge variant="neutral" size="sm">Inactive</Badge>
+          <Badge variant="success" size="sm"><T>Paid</T></Badge>
+          <Badge variant="warning" size="sm"><T>Pending</T></Badge>
+          <Badge variant="info" size="sm"><T>Ready</T></Badge>
+          <Badge variant="success" size="sm"><T>Delivered</T></Badge>
+          <Badge variant="danger" size="sm"><T>Cancelled</T></Badge>
+          <Badge variant="neutral" size="sm"><T>Active</T></Badge>
+          <Badge variant="neutral" size="sm"><T>Inactive</T></Badge>
         </div>
       </Section>
 
@@ -178,18 +179,18 @@ function DesignSystemPreviewPage() {
         <EmptyState
           title="No customers found"
           description="There are no customers matching your search."
-          action={<Button variant="primary">Add Customer</Button>}
+          action={<Button variant="primary"><T>Add Customer</T></Button>}
         />
       </Section>
 
       <Section title="Modal & Confirm Dialog">
         <div className={styles.row}>
-          <Button variant="secondary" onClick={() => setModalOpen(true)}>
+          <Button variant="secondary" onClick={() => setModalOpen(true)}><T>
             Open modal
-          </Button>
-          <Button variant="danger" onClick={() => setConfirmOpen(true)}>
+          </T></Button>
+          <Button variant="danger" onClick={() => setConfirmOpen(true)}><T>
             Open confirm
-          </Button>
+          </T></Button>
         </div>
 
         <Modal
@@ -198,16 +199,16 @@ function DesignSystemPreviewPage() {
           title="Modal title"
           footer={
             <>
-              <Button variant="secondary" onClick={() => setModalOpen(false)}>
+              <Button variant="secondary" onClick={() => setModalOpen(false)}><T>
                 Cancel
-              </Button>
-              <Button variant="primary" onClick={() => setModalOpen(false)}>
+              </T></Button>
+              <Button variant="primary" onClick={() => setModalOpen(false)}><T>
                 Save
-              </Button>
+              </T></Button>
             </>
           }
         >
-          <p>Modal body content. Press Escape or click the overlay to close.</p>
+          <p><T>Modal body content. Press Escape or click the overlay to close.</T></p>
         </Modal>
 
         <ConfirmDialog

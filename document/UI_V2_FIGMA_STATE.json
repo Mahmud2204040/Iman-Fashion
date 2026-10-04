@@ -1,0 +1,14 @@
+{
+  "fileKey": "JNqm5ZmVxiUssPeQlwOC6S",
+  "pageName": "NI Fashion V2",
+  "pageId": "101:2",
+  "phase": "shared-components-created",
+  "components": {
+    "sidebarCollapsed": "107:2",
+    "buttonLime": "107:42",
+    "metricCard": "107:44"
+  },
+  "approval": "pending",
+  "codeImplementation": "not-started",
+  "note": "This ledger records the Figma-first approval gate. Do not start app UI coding until V2 frames are approved."
+}

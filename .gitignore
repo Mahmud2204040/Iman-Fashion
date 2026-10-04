@@ -10,6 +10,7 @@ pnpm-debug.log*
 dist
 dist-ssr
 build
+api/src/generated/prisma/
 
 # Dependencies
 node_modules

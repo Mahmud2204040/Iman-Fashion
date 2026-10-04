@@ -1,328 +1,122 @@
-﻿/*
- * DashboardPage — calm hero, premium card grid.
- *
- * Hero is intentionally simple: the eyebrow + title + description are
- * handled by <PageHeader>. We only need a tiny utility for the
- * highlighted name in the title.
- *
- * Below the header: a 4-up stats grid that collapses to 1/2/4 columns
- * at mobile/tablet/desktop, and a two-column split (activity feed +
- * quick actions).
- */
-
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  /* Mobile default: page sizes to its content so the page scrolls
-     naturally and the BottomNav doesn't cut anything off. */
-  min-height: auto;
+  gap: 20px;
+  width: 100%;
+  max-width: 1440px;
+  min-height: 0;
+  padding-top: 22px;
 }
 
-/* On desktop (no bottom-nav) the dashboard fills 100vh so the user
-   sees greeting → stats → split in a single screen. On mobile the
-   page scrolls naturally so the BottomNav doesn't cut off content. */
-@media (min-width: 1024px) {
-  .page {
-    height: 100%;
-    min-height: 0;
-  }
-}
-
-/* ---------- Premium hero header ---------- */
-
-.heroHeader {
-  position: relative;
+.heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-6);
-  margin-bottom: var(--space-2);
-  border-radius: var(--radius-xl);
-  background:
-    linear-gradient(135deg, #ffffff 0%, #f8fafc 60%, #eff6ff 100%);
-  border: 1px solid var(--color-border);
-  box-shadow:
-    var(--shadow-card),
-    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
-  overflow: hidden;
-  isolation: isolate;
-  /* Make sure the welcome card always shows in full — never let a
-     flex/grid parent clip it. */
-  flex: 0 0 auto;
-  align-self: stretch;
+  gap: 24px;
 }
 
-.heroHeader::before {
-  /* Soft brand-tinted glow on the right edge */
-  content: "";
-  position: absolute;
-  inset: -40% -20% auto auto;
-  width: 60%;
-  height: 200%;
-  background:
-    radial-gradient(ellipse at center,
-      rgba(37, 99, 235, 0.16) 0%,
-      rgba(14, 165, 233, 0.08) 40%,
-      rgba(255, 255, 255, 0) 70%);
-  filter: blur(20px);
-  pointer-events: none;
-  z-index: 0;
+.title {
+  margin: 0;
+  color: var(--nf-ink, #171817);
+  font-size: clamp(28px, 3vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.16;
 }
 
-.heroHeader::after {
-  /* Faint accent stripe at the very left edge */
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--gradient-brand);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  z-index: 0;
+.subtitle {
+  margin: 6px 0 0;
+  color: var(--nf-muted, #74786f);
+  font-size: 14px;
 }
 
-.heroText {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
+.dateContext {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  align-items: flex-end;
+  gap: 4px;
+  padding-top: 8px;
+  color: var(--nf-ink, #171817);
+  text-align: right;
 }
 
-.heroEyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 11px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-widest);
-  text-transform: uppercase;
-  color: var(--color-primary-active);
+.dateContext strong {
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.heroEyebrowDot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--gradient-brand);
-  box-shadow: 0 0 0 3px var(--color-primary-soft);
+.dateContext span {
+  color: var(--nf-muted, #74786f);
+  font-size: 12px;
 }
-
-.heroTitle {
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text);
-  letter-spacing: var(--letter-spacing-tighter);
-  line-height: var(--line-height-tight);
-}
-
-.heroHighlight {
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  display: inline-block;
-}
-
-.heroMeta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.headerDate {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  letter-spacing: 0.01em;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.headerDateIcon {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-primary-active);
-}
-
-@media (max-width: 640px) {
-  /* On mobile the hero is a calm flat card — no gradient, no glow,
-     no accent stripe, no shadow. Just a subtle surface + border so
-     the welcome area reads as its own block against the stats below.
-     The premium look (gradient + glow + stripe + shadow) stays on
-     desktop. */
-  .heroHeader {
-    padding: var(--space-4) var(--space-4);
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-2);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: none;
-    margin-bottom: var(--space-2);
-  }
-
-  /* Hide the glow + accent stripe on mobile. */
-  .heroHeader::before,
-  .heroHeader::after {
-    display: none;
-  }
-
-  .heroText {
-    gap: 4px;
-    min-width: 0;
-    width: 100%;
-  }
-
-  .heroEyebrow {
-    font-size: 10px;
-    color: var(--color-text-muted);
-    display: block;
-    letter-spacing: var(--letter-spacing-widest);
-    text-transform: uppercase;
-  }
-
-  /* Hide the colored dot before the eyebrow — keeps it clean on mobile. */
-  .heroEyebrowDot {
-    display: none !important;
-  }
-
-  .heroTitle {
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-bold);
-    letter-spacing: var(--letter-spacing-tight);
-    line-height: 1.25;
-    margin: 0;
-    /* Allow the title to wrap cleanly on narrow phones. */
-    word-break: break-word;
-  }
-
-  .heroMeta {
-    margin-top: 6px;
-  }
-
-  /* Flatten the date — small muted text, no pill chrome. */
-  .headerDate {
-    padding: 0;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-    font-size: 11px;
-    color: var(--color-text-muted);
-    font-weight: var(--font-weight-regular);
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
-  .headerDateIcon {
-    color: var(--color-text-muted);
-  }
-}
-
-/* ---------- Stats grid ---------- */
 
 .statsGrid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
 }
-
-@media (min-width: 640px) {
-  .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1100px) {
-  .statsGrid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-/* ---------- Two-column split ---------- */
 
 .split {
   display: grid;
-  grid-template-columns: 1fr;
-  grid-auto-rows: auto;
-  gap: var(--space-3);
-  position: relative;
-}
-
-@media (min-width: 1024px) {
-  .split {
-    grid-template-columns: 2fr 1fr;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 18px;
+  min-height: 0;
+  flex: 1;
 }
 
 .splitMain,
 .splitAside {
-  display: flex;
-  flex-direction: column;
   min-width: 0;
-  position: relative;
-  z-index: 1;
+  min-height: 0;
+  display: flex;
 }
 
-/* Mobile: each card sizes naturally — the page scrolls. */
 .splitMain > *,
 .splitAside > * {
-  flex: 0 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-/* Desktop: equal-height split. ActivityFeed stretches to fill the
-   available height; NotesWidget follows so both cards match. */
-@media (min-width: 1024px) {
-  .splitMain > *,
-  .splitAside > * {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
+  width: 100%;
 }
 
 .loadingState,
 .errorState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-12) var(--space-6);
+  display: grid;
+  place-content: center;
+  min-height: 280px;
+  padding: 32px;
+  border: 1px solid var(--nf-border, #e4e0d6);
+  border-radius: 14px;
+  background: var(--nf-surface, #fffdf8);
   text-align: center;
-  gap: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.errorState {
-  border-color: #fecaca;
-  background: #fef2f2;
 }
 
 .loadingText,
 .errorText {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  color: var(--nf-muted, #74786f);
+  font-size: 14px;
 }
 
-.errorText {
-  color: #b91c1c;
+.errorState button {
+  justify-self: center;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: var(--nf-lime, #c7f36b);
+  color: var(--nf-ink, #171817);
+  font-weight: 600;
+}
+
+@media (max-width: 1120px) {
+  .statsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split { grid-template-columns: 1fr; flex: none; min-height: auto; }
+  .splitMain,
+  .splitAside { min-height: auto; }
+}
+
+@media (max-width: 640px) {
+  .page { gap: 16px; padding-top: 20px; }
+  .heading { display: block; }
+  .dateContext { align-items: flex-start; text-align: left; padding-top: 10px; }
+  .statsGrid { gap: 10px; }
+}
+
+@media (max-width: 390px) {
+  .statsGrid { grid-template-columns: 1fr; }
 }

@@ -5,6 +5,7 @@
  * The currency code and locale are defined in constants/app.js.
  */
 import { CURRENCY, DATE_FORMAT } from '../constants/app.js';
+import { getUiLanguage } from './localeState.js';
 
 function pickLocale() {
   // Some Intl builds throw on en-BD — fall back to a locale that always works.
@@ -29,6 +30,7 @@ export function formatCurrency(value, { maximumFractionDigits = 2 } = {}) {
     return new Intl.NumberFormat(LOCALE, {
       style: 'currency',
       currency: CURRENCY.code,
+      currencyDisplay: 'narrowSymbol',
       maximumFractionDigits,
       minimumFractionDigits: 0,
     }).format(num);
@@ -45,14 +47,14 @@ export function formatCurrency(value, { maximumFractionDigits = 2 } = {}) {
 export function formatCompact(value) {
   const num = Number.isFinite(value) ? value : 0;
   try {
-    return new Intl.NumberFormat(LOCALE, {
+    return `${CURRENCY.symbol}${new Intl.NumberFormat(LOCALE, {
       notation: 'compact',
       maximumFractionDigits: 1,
-    }).format(num);
+    }).format(num)}`;
   } catch {
-    if (Math.abs(num) >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-    if (Math.abs(num) >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-    return String(num);
+    if (Math.abs(num) >= 1_000_000) return `${CURRENCY.symbol}${(num / 1_000_000).toFixed(1)}M`;
+    if (Math.abs(num) >= 1_000) return `${CURRENCY.symbol}${(num / 1_000).toFixed(1)}K`;
+    return `${CURRENCY.symbol}${num}`;
   }
 }
 
@@ -70,6 +72,13 @@ export function formatNumber(value) {
   }
 }
 
+/** Human-readable count with English digits in both UI languages. */
+export function formatCount(value, singular, plural, bangla) {
+  const count = Number(value) || 0;
+  const noun = getUiLanguage() === 'bn' ? bangla : count === 1 ? singular : plural;
+  return `${formatNumber(count)} ${noun}`;
+}
+
 /**
  * Today as a long human-readable date, e.g. "Friday, 12 September 2025".
  *
@@ -77,11 +86,14 @@ export function formatNumber(value) {
  * or null/undefined (defaults to today). Falls back to ISO date portion
  * if Intl formatting fails on the input.
  */
-export function formatLongDate(input = new Date()) {
+export function formatLongDate(input = new Date(), language = getUiLanguage()) {
   const d = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(d.getTime())) return '';
   try {
-    return new Intl.DateTimeFormat(DATE_FORMAT.locale, DATE_FORMAT.options).format(d);
+    return new Intl.DateTimeFormat(
+      language === 'bn' ? 'bn-BD-u-nu-latn' : DATE_FORMAT.locale,
+      DATE_FORMAT.options,
+    ).format(d);
   } catch {
     try { return d.toDateString(); } catch { return ''; }
   }
@@ -124,15 +136,16 @@ export function timeAgo(iso, now = new Date()) {
   if (Number.isNaN(then.getTime())) return '';
   const diffMs = now.getTime() - then.getTime();
   const diffSec = Math.round(diffMs / 1000);
-  if (diffSec < 60) return 'just now';
+  const bn = getUiLanguage() === 'bn';
+  if (diffSec < 60) return bn ? 'এইমাত্র' : 'just now';
   const diffMin = Math.round(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return bn ? `${diffMin} মিনিট আগে` : `${diffMin}m ago`;
   const diffHour = Math.round(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}h ago`;
+  if (diffHour < 24) return bn ? `${diffHour} ঘণ্টা আগে` : `${diffHour}h ago`;
   const diffDay = Math.round(diffHour / 24);
-  if (diffDay === 1) return 'yesterday';
-  if (diffDay < 7) return `${diffDay}d ago`;
-  return then.toLocaleDateString(DATE_FORMAT.locale, { day: 'numeric', month: 'short' });
+  if (diffDay === 1) return bn ? 'গতকাল' : 'yesterday';
+  if (diffDay < 7) return bn ? `${diffDay} দিন আগে` : `${diffDay}d ago`;
+  return then.toLocaleDateString(bn ? 'bn-BD-u-nu-latn' : DATE_FORMAT.locale, { day: 'numeric', month: 'short', timeZone: 'Asia/Dhaka' });
 }
 
 /**
@@ -147,15 +160,18 @@ export function formatExactDateTime(input) {
   const d = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(d.getTime())) return '—';
   try {
-    const dateText = new Intl.DateTimeFormat('en-GB', {
+    const bn = getUiLanguage() === 'bn';
+    const dateText = new Intl.DateTimeFormat(bn ? 'bn-BD-u-nu-latn' : 'en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Dhaka',
     }).format(d);
-    const timeText = new Intl.DateTimeFormat('en-US', {
+    const timeText = new Intl.DateTimeFormat(bn ? 'bn-BD-u-nu-latn' : 'en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+      timeZone: 'Asia/Dhaka',
     }).format(d);
     return `${dateText}, ${timeText}`;
   } catch {
@@ -164,18 +180,18 @@ export function formatExactDateTime(input) {
 }
 
 /**
- * Exact date only — "02 Sep 2026". Use when the time is shown in
- * a sibling column.
+ * Exact business date with English digits in either UI language.
  */
 export function formatExactDate(input) {
   if (!input) return '—';
   const d = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(d.getTime())) return '—';
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(getUiLanguage() === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+      timeZone: 'Asia/Dhaka',
     }).format(d);
   } catch {
     return d.toISOString().slice(0, 10);
@@ -191,12 +207,24 @@ export function formatExactTime(input) {
   const d = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(d.getTime())) return '—';
   try {
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(getUiLanguage() === 'bn' ? 'bn-BD-u-nu-latn' : 'en-US', {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
+      timeZone: 'Asia/Dhaka',
     }).format(d);
   } catch {
     return d.toISOString().slice(11, 16);
   }
+}
+
+/**
+ * Format a numeric sequence as a customer code, e.g. 1 -> "CUS-000001".
+ * Matches DATABASE_PLAN.md §8 customer_code contract (6-digit, zero-padded).
+ * Falls back to a raw-string cast for non-numeric input.
+ */
+export function formatCustomerCode(input) {
+  const n = Number(input);
+  if (!Number.isFinite(n) || n < 0) return String(input || '');
+  return `CUS-${String(Math.trunc(n)).padStart(6, '0')}`;
 }

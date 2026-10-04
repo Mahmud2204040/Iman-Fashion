@@ -12,6 +12,10 @@
 import assert from 'node:assert/strict';
 
 import { ROLES } from '../src/constants/roles.js';
+import { createProduct } from '../src/services/products/productService.js';
+import { completeSale } from '../src/services/sales/salesService.js';
+import { getCustomers } from '../src/services/customers/customerService.js';
+import { createPurchase } from '../src/services/purchases/purchaseService.js';
 import {
   resolveRange,
   getSalesSummary,
@@ -76,10 +80,9 @@ await test('resolveRange — custom from/to preserved', async () => {
     start: '2024-01-01',
     end: '2024-01-31',
   });
-  // The service anchors to local-midnight via setHours(0,0,0,0), so we
-  // construct expected instants in local time as well (not UTC strings).
-  assert.equal(start.getTime(), new Date(2024, 0, 1).getTime());
-  assert.equal(end.getTime(), new Date(2024, 0, 31, 23, 59, 59, 999).getTime());
+  // Boundaries are shop-local midnight, regardless of the host timezone.
+  assert.equal(start.toISOString(), '2023-12-31T18:00:00.000Z');
+  assert.equal(end.toISOString(), '2024-01-31T17:59:59.999Z');
 });
 
 await test('resolveRange — week/month/year presets', async () => {
@@ -122,7 +125,7 @@ await test('getCustomOrderStatusCounts — counts map', async () => {
   const data = await getCustomOrderStatusCounts(RANGE, { actor: OWNER });
   assert.equal(typeof data.total, 'number');
   assert.ok(data.counts && typeof data.counts === 'object');
-  for (const k of ['PENDING', 'IN_PROGRESS', 'READY', 'DELIVERED', 'CANCELLED']) {
+  for (const k of ['PENDING', 'READY', 'DELIVERED', 'CANCELLED']) {
     assert.equal(typeof data.counts[k], 'number');
   }
 });
@@ -211,9 +214,9 @@ await test('getExpensesByCategory — grouped rows', async () => {
 
 // --- 8. Cash reports ------------------------------------------------------
 
-await test('getCashOpening — opening=0 per Phase 12', async () => {
+await test('getCashOpening — carries earlier ledger movements', async () => {
   const data = await getCashOpening({}, { actor: OWNER });
-  assert.equal(data.opening, 0);
+  assert.ok(data.opening > 0);
   assert.equal(data.derivedFrom, 'closing-balance');
 });
 
@@ -227,30 +230,45 @@ await test('getCashOutReport — cash-out rows', async () => {
   assert.ok(Array.isArray(data));
 });
 
-await test('getCashAdjustmentsReport — empty per Phase 12', async () => {
+await test('getCashAdjustmentsReport — honest empty adjustments and counts', async () => {
   const data = await getCashAdjustmentsReport({}, { actor: OWNER });
   assert.ok(Array.isArray(data.rows));
   assert.equal(data.rows.length, 0);
 });
 
-await test('getCashExpected — opening=0, expected = cashIn - cashOut', async () => {
+await test('getCashExpected — carried opening plus signed movements', async () => {
   const data = await getCashExpected(RANGE, { actor: OWNER });
-  assert.equal(data.opening, 0);
+  assert.ok(data.opening > 0);
   assert.equal(typeof data.cashIn, 'number');
   assert.equal(typeof data.cashOut, 'number');
-  assert.equal(data.expected, data.cashIn - data.cashOut);
+  assert.equal(data.expected, data.opening + data.initialOpening + data.cashIn - data.cashOut + data.adjustments);
 });
 
 // --- 9. Profit ------------------------------------------------------------
 
-await test('getProfitReport — returns revenue/cogs/expense + profit flag', async () => {
+await test('getProfitReport — returns revenue/snapshot cost + profit flag', async () => {
   const data = await getProfitReport(RANGE, { actor: OWNER });
   assert.equal(typeof data.revenue, 'number');
   assert.equal(typeof data.cogs, 'number');
-  assert.equal(typeof data.expenseTotal, 'number');
+  assert.equal(typeof data.knownCostSubtotal, 'number');
+  assert.equal(data.expenseTotal, undefined, 'expenses must not enter product-profit report');
   assert.equal(typeof data.totalCogsLines, 'number');
   assert.equal(typeof data.missingCogsLines, 'number');
   assert.ok(Array.isArray(data.products));
+});
+
+await test('getProfitReport uses sale-time cost, not current cost or expenses', async () => {
+  const product = await createProduct({
+    name: 'Profit smoke product', sku: 'PROFIT-SMOKE', price: 100,
+    purchasePrice: 40, stock: 5,
+  }, { actor: OWNER });
+  const customer = (await getCustomers())[0];
+  await completeSale({ customer, items: [{ productId: product.id, qty: 2, price: 100 }] }, { actor: OWNER });
+  const today = await getProfitReport({ range: 'today' }, { actor: OWNER });
+  assert.equal(today.revenue, 200);
+  assert.equal(today.cogs, 80);
+  assert.equal(today.profit, 120);
+  assert.equal(today.knownCostSubtotal, 120);
 });
 
 await test('getProfitReport — profit is null when missingCogsLines > 0', async () => {
@@ -262,6 +280,20 @@ await test('getProfitReport — profit is null when missingCogsLines > 0', async
   } else {
     assert.equal(data.complete, true);
   }
+});
+
+// --- Role guard -----------------------------------------------------------
+
+await test('supplier purchase report filters by purchase date, not entry time', async () => {
+  const purchase = await createPurchase({
+    supplierId: 'sup-001',
+    purchaseDate: '2024-05-12',
+    items: [{ name: 'Report-date sample fabric', qty: 1, unitPrice: 40 }],
+  }, { actor: OWNER });
+  const historical = await getSupplierPurchasesReport({ range: 'custom', start: '2024-05-12', end: '2024-05-12' }, { actor: OWNER });
+  assert.ok(historical.some((row) => row.id === purchase.id));
+  const today = await getSupplierPurchasesReport({ range: 'today' }, { actor: OWNER });
+  assert.ok(!today.some((row) => row.id === purchase.id));
 });
 
 // --- Role guard -----------------------------------------------------------

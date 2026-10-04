@@ -1,4 +1,6 @@
+import T from '../../components/common/LocalizedText.jsx';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader/PageHeader.jsx';
 import Card from '../../components/common/Card/Card.jsx';
 import FormField from '../../components/common/FormField/FormField.jsx';
@@ -9,16 +11,17 @@ import SearchInput from '../../components/common/SearchInput/SearchInput.jsx';
 import Spinner from '../../components/common/Spinner/Spinner.jsx';
 import EmptyState from '../../components/common/EmptyState/EmptyState.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-import { getRawMaterials, createRawMaterial } from '../../services/rawMaterials/rawMaterialService.js';
+import { getRawMaterials, updateRawMaterial } from '../../services/rawMaterials/rawMaterialService.js';
 import { formatCurrency, formatLongDate } from '../../utils/format.js';
+import { cashBusinessDate } from '../../utils/cashDate.js';
 const formatBDT = (v) => formatCurrency(v, { currency: 'BDT', maximumFractionDigits: 0 });
 const formatDate = (d) => formatLongDate(d);
 import { RawMaterialIcon } from '../../components/icons/DashboardIcon.jsx';
 import styles from './RawMaterialsPage.module.css';
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => cashBusinessDate();
 
-const emptyForm = { name: '', quantity: '', description: '', date: today(), notes: '', purchaseCost: '' };
+const emptyForm = { name: '', quantity: '', description: '', date: today(), purchaseCost: '' };
 
 export default function RawMaterialsPage() {
   const { user } = useAuth();
@@ -28,24 +31,27 @@ export default function RawMaterialsPage() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
   const refresh = async () => {
     setLoading(true);
     try {
       const data = await getRawMaterials();
       setItems(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err?.message || 'Could not load raw materials.');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { refresh(); /* eslint-disable-line */ }, []);
+  useEffect(() => { refresh(); }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
     return items.filter((m) =>
-      [m.itemName, m.description, m.notes].filter(Boolean).some((v) => v.toLowerCase().includes(q))
+      [m.itemName, m.description].filter(Boolean).some((v) => v.toLowerCase().includes(q))
     );
   }, [items, search]);
 
@@ -66,17 +72,17 @@ export default function RawMaterialsPage() {
     if (!Number.isFinite(qty) || qty <= 0) { setError('Quantity must be a positive number.'); return; }
     setSaving(true);
     try {
-      await createRawMaterial(
+      await updateRawMaterial(editingId,
         {
           itemName: form.name.trim(),
           quantity: qty,
           description: form.description.trim() || null,
           date: form.date || today(),
-          notes: form.notes.trim() || null,
           purchaseCost: form.purchaseCost === '' ? null : Number(form.purchaseCost),
         },
         { actor: user }
       );
+      setEditingId(null);
       setForm(emptyForm);
       await refresh();
     } catch (err) {
@@ -86,6 +92,13 @@ export default function RawMaterialsPage() {
     }
   };
 
+  function startEdit(item) {
+    setEditingId(item.id);
+    setForm({ name: item.itemName, quantity: String(item.quantity), description: item.description || '', date: item.date, purchaseCost: item.purchaseCost == null ? '' : String(item.purchaseCost) });
+    setError('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   return (
     <div className={styles.page}>
       <PageHeader title="Raw Materials" subtitle="Owner-only record keeping for materials, fabrics and supplies. Separate from finished product stock." />
@@ -93,31 +106,31 @@ export default function RawMaterialsPage() {
       <div className={styles.banner} role="note">
         <RawMaterialIcon size={16} />
         <span>
-          <strong>Owner only.</strong> Adding raw materials here does not adjust finished product stock or shop cash. Use Product stock and Cash pages for those.
-        </span>
+          <strong><T>Owner only.</T></strong><T> Adding raw materials here does not adjust finished product stock or shop cash. Use Product stock and Cash pages for those.
+        </T></span>
       </div>
 
       <Card>
         <div className={styles.totalsRow}>
           <div>
-            <span className={styles.qtyLabel}>Records</span>
+            <span className={styles.qtyLabel}><T>Records</T></span>
             <span className={styles.costValue}>{totals.records}</span>
           </div>
           <div>
-            <span className={styles.qtyLabel}>Total Quantity</span>
+            <span className={styles.qtyLabel}><T>Total Quantity</T></span>
             <span className={styles.costValue}>{totals.quantity}</span>
           </div>
           <div>
-            <span className={styles.qtyLabel}>Recorded Spend</span>
+            <span className={styles.qtyLabel}><T>Recorded Spend</T></span>
             <span className={styles.costValue}>{formatBDT(totals.spend)}</span>
           </div>
         </div>
       </Card>
 
       <Card>
-        <h2 className={styles.formTitle}>Add raw material</h2>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          {error ? <p className={styles.formError}>{error}</p> : null}
+        <h2 className={styles.formTitle}><T>{editingId ? 'Edit raw material' : 'Add raw material'}</T></h2>
+        {editingId ? <form className={styles.form} onSubmit={handleSubmit}>
+          {error ? <p className={styles.formError}><T>{error}</T></p> : null}
           <div className={styles.row}>
             <FormField label="Name" required htmlFor="rm-name">
               {(controlProps) => (
@@ -140,31 +153,26 @@ export default function RawMaterialsPage() {
               <Textarea id="rm-desc" name="description" rows={2} value={form.description} onChange={update('description')} placeholder="Optional context about this material." {...controlProps} />
             )}
           </FormField>
-          <FormField label="Notes" htmlFor="rm-notes">
-            {(controlProps) => (
-              <Textarea id="rm-notes" name="notes" rows={2} value={form.notes} onChange={update('notes')} placeholder="Optional notes." {...controlProps} />
-            )}
-          </FormField>
-          <FormField label="Purchase cost (BDT, optional)" htmlFor="rm-cost">
+          <FormField label="Purchase cost (৳, optional)" htmlFor="rm-cost">
             {(controlProps) => (
               <Input id="rm-cost" name="purchaseCost" type="number" min="0" step="0.01" value={form.purchaseCost} onChange={update('purchaseCost')} placeholder="0.00" {...controlProps} />
             )}
           </FormField>
           <div className={styles.formActions}>
-            <Button type="button" variant="ghost" onClick={() => setForm(emptyForm)} disabled={saving}>Reset</Button>
-            <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Add material'}</Button>
+            <Button type="button" variant="ghost" onClick={() => { setEditingId(null); setForm(emptyForm); }} disabled={saving}><T>Cancel edit</T></Button>
+            <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</Button>
           </div>
-        </form>
+        </form> : <p><T>Use the dedicated form for a new record. </T><Link to="/raw-materials/new"><T>+ New raw material</T></Link></p>}
       </Card>
 
       <Card>
         <div className={styles.controlsCard}>
-          <SearchInput value={search} onChange={setSearch} placeholder="Search by name, description or notes…" />
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or description…" />
         </div>
       </Card>
 
       {loading ? (
-        <div className={styles.loading}><Spinner size={20} /> Loading materials…</div>
+        <div className={styles.loading}><Spinner size={20} /><T> Loading materials…</T></div>
       ) : filtered.length === 0 ? (
         <EmptyState
           title={search ? 'No materials match your search.' : 'No raw materials recorded yet.'}
@@ -182,20 +190,17 @@ export default function RawMaterialsPage() {
                 </div>
                 <div className={styles.qtyBadge}>
                   <span className={styles.qtyValue}>{Number(m.quantity) || 0}</span>
-                  <span className={styles.qtyLabel}>qty</span>
+                  <span className={styles.qtyLabel}><T>qty</T></span>
                 </div>
               </div>
               {m.description ? <p className={styles.description}>{m.description}</p> : null}
-              <div className={styles.metaRow}>
-                <span className={styles.metaPill}>Owner only</span>
-                {m.notes ? <span className={styles.metaText} title={m.notes}>Notes</span> : null}
-              </div>
               <div className={styles.costRow}>
-                <span className={styles.costLabel}>Purchase cost</span>
+                <span className={styles.costLabel}><T>Purchase cost</T></span>
                 <span className={styles.costValue}>{m.purchaseCost != null ? formatBDT(m.purchaseCost) : '—'}</span>
               </div>
-              <div className={styles.cardFooter}>
-                Added by {m.createdByName || 'system'} · {formatDate(m.createdAt)}
+              <div className={styles.cardFooter}><T>
+                Added by </T>{m.createdBy || 'unknown'} · {formatDate(m.createdAt)}
+                {' · '}<button type="button" onClick={() => startEdit(m)}><T>Edit</T></button>
               </div>
             </li>
           ))}

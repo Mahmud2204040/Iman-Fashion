@@ -1,4 +1,5 @@
 import styles from './PageHeader.module.css';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 
 /**
  * PageHeader — the title block at the top of every page.
@@ -24,19 +25,22 @@ function PageHeader({
   eyebrow,
   title,
   description,
+  subtitle,
   actions,
   className = '',
   ...rest
 }) {
+  const { t } = useLocale();
+  const copy = (value) => typeof value === 'string' ? t(value) : value;
   const classes = [styles.root, className].filter(Boolean).join(' ');
 
   return (
     <header className={classes} {...rest}>
       <div className={styles.text}>
-        {eyebrow ? <span className={styles.eyebrow}>{eyebrow}</span> : null}
-        {title ? <h1 className={styles.title}>{title}</h1> : null}
-        {description ? (
-          <p className={styles.description}>{description}</p>
+        {eyebrow ? <span className={styles.eyebrow}>{copy(eyebrow)}</span> : null}
+        {title ? <h1 className={styles.title}>{copy(title)}</h1> : null}
+        {description || subtitle ? (
+          <p className={styles.description}>{copy(description || subtitle)}</p>
         ) : null}
       </div>
       {actions ? <div className={styles.actions}>{actions}</div> : null}

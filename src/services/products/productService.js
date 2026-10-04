@@ -31,7 +31,7 @@ const PRODUCTS = [
     description: 'Navy blue school uniform set: tunic + hijab + trousers.',
     price: 1850,
     purchasePrice: null,
-    stock: 24,
+    stock: 22,
     reorderLevel: 0,
     isActive: true,
     createdBy: 'owner',
@@ -49,7 +49,7 @@ const PRODUCTS = [
     description: 'Navy blue school uniform set for Class 5.',
     price: 2100,
     purchasePrice: null,
-    stock: 18,
+    stock: 19,
     reorderLevel: 0,
     isActive: true,
     createdBy: 'owner',
@@ -314,8 +314,13 @@ export async function createProduct(payload = {}, { actor } = {}) {
   requireRole({ actor }, OWNER_ROLE);
   await delay(180);
   const name = String(payload.name || '').trim();
-  const sku = String(payload.sku || '').trim();
-  const price = Number(payload.price);
+  const id = 'prd-' + String(PRODUCTS.length + 1).padStart(3, '0');
+  const sku = Object.hasOwn(payload, 'sku')
+    ? String(payload.sku || '').trim()
+    : id.toUpperCase();
+  const price = payload.price === undefined || payload.price === null || payload.price === ''
+    ? null
+    : Number(payload.price);
   const stock = payload.stock === undefined ? 0 : Number(payload.stock);
 
   if (!name) {
@@ -338,7 +343,7 @@ export async function createProduct(payload = {}, { actor } = {}) {
     err.code = 'DUPLICATE_SKU';
     throw err;
   }
-  if (!Number.isFinite(price) || price <= 0) {
+  if (price !== null && (!Number.isFinite(price) || price <= 0)) {
     const err = new Error('Price must be a positive number.');
     err.code = 'INVALID_PRICE';
     throw err;
@@ -361,7 +366,6 @@ export async function createProduct(payload = {}, { actor } = {}) {
     throw err;
   }
 
-  const id = 'prd-' + String(PRODUCTS.length + 1).padStart(3, '0');
   const product = {
     id,
     sku,
@@ -563,4 +567,79 @@ export async function getStockHistory(productId) {
 /** Test/admin helper — full pre-POST state. Not exported in index. */
 export function _getLedger() {
   return STOCK_LEDGER.map(cloneLedger);
+}
+
+/** Internal sale lookup: no catalogue price or category; price is entered per sale. */
+export function _getSaleProducts(query = '') {
+  const q = String(query || '').trim().toLowerCase();
+  return PRODUCTS.filter((product) => product.isActive && (
+    !q || product.name.toLowerCase().includes(q) || product.id.toLowerCase().includes(q)
+  )).map((product) => ({
+    id: product.id, name: product.name, stock: product.stock,
+  }));
+}
+
+/** Validate all sale lines against the canonical catalogue before any write. */
+export function _prepareSaleLines(items) {
+  const byProduct = new Map();
+  for (const [index, item] of items.entries()) {
+    const product = PRODUCTS.find((row) => row.id === item.productId && row.isActive);
+    if (!product) {
+      const error = new Error(`Item ${index + 1}: product is unavailable.`);
+      error.code = 'PRODUCT_NOT_FOUND';
+      throw error;
+    }
+    const qty = Number(item.qty);
+    const price = Number(item.price);
+    if (!Number.isInteger(qty) || qty <= 0) {
+      const error = new Error(`Item ${index + 1}: quantity must be a whole number greater than zero.`);
+      error.code = 'INVALID_QTY';
+      throw error;
+    }
+    if (item.price === '' || item.price == null || !Number.isFinite(price) || price <= 0) {
+      const error = new Error(`Item ${index + 1}: selling price must be greater than zero.`);
+      error.code = 'INVALID_PRICE';
+      throw error;
+    }
+    const previous = byProduct.get(product.id);
+    if (previous && previous.price !== price) {
+      const error = new Error(`Item ${index + 1}: repeat product uses a different price.`);
+      error.code = 'CONFLICTING_PRICE';
+      throw error;
+    }
+    byProduct.set(product.id, {
+      productId: product.id, productName: product.name, sku: product.sku,
+      qty: qty + (previous?.qty || 0), price,
+      purchaseCostAtSale: product.purchasePrice,
+    });
+  }
+  const lines = [...byProduct.values()];
+  for (const line of lines) {
+    const product = PRODUCTS.find((row) => row.id === line.productId);
+    if (line.qty > product.stock) {
+      const error = new Error(`${product.name}: only ${product.stock} item(s) in stock.`);
+      error.code = 'INSUFFICIENT_STOCK';
+      throw error;
+    }
+  }
+  return lines;
+}
+
+/** Commit a previously validated sale synchronously, with one stock row per product. */
+export function _commitSaleStock(lines, saleId, salesCode, actor, createdAt) {
+  for (const line of lines) {
+    const product = PRODUCTS.find((row) => row.id === line.productId);
+    product.stock -= line.qty;
+    product.updatedAt = createdAt;
+    product.updatedBy = actor?.username || 'unknown';
+    product.updatedByRole = actor?.role || null;
+    STOCK_LEDGER.unshift({
+      id: 'sl-' + String(STOCK_LEDGER.length + 1).padStart(3, '0'),
+      productId: product.id, delta: -line.qty, reason: `Sale ${salesCode}`,
+      note: `Automatic stock deduction for ${saleId}`,
+      referenceType: 'SALE', referenceId: saleId,
+      createdBy: actor?.username || 'unknown', createdByRole: actor?.role || null,
+      createdAt,
+    });
+  }
 }

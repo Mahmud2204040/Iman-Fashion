@@ -1,7 +1,8 @@
+import T from '../../../common/LocalizedText.jsx';
+import { useLocale } from '../../../../contexts/LocaleContext.jsx';
 import { CustomOrderIcon, SaleIcon } from '../../../icons/DashboardIcon.jsx';
 import {
   formatCurrency,
-  formatNumber,
   timeAgo,
 } from '../../../../utils/format.js';
 import styles from './ActivityFeed.module.css';
@@ -19,10 +20,10 @@ function ActivityFeed({ items = [], loading = false }) {
   return (
     <section className={styles.feed} aria-labelledby={headingId}>
       <header className={styles.header}>
-        <h2 id={headingId} className={styles.title}>
+        <h2 id={headingId} className={styles.title}><T>
           Recent activity
-        </h2>
-        <span className={styles.subtitle}>Last few hours</span>
+        </T></h2>
+        <span className={styles.subtitle}><T>Sales & custom orders</T></span>
       </header>
 
       {loading ? (
@@ -33,11 +34,11 @@ function ActivityFeed({ items = [], loading = false }) {
         </div>
       ) : items.length === 0 ? (
         <div className={styles.empty}>
-          <p className={styles.emptyTitle}>No activity yet today</p>
-          <p className={styles.emptyBody}>
+          <p className={styles.emptyTitle}><T>No activity yet today</T></p>
+          <p className={styles.emptyBody}><T>
             Sales and custom orders you record will show up here in real
             time.
-          </p>
+          </T></p>
         </div>
       ) : (
         <ul className={styles.list}>
@@ -51,14 +52,16 @@ function ActivityFeed({ items = [], loading = false }) {
 }
 
 function ActivityRow({ item }) {
+  const { t } = useLocale();
   const isSale = item.kind === 'sale';
   const Icon = isSale ? SaleIcon : CustomOrderIcon;
   const kindLabel = isSale ? 'Sale' : 'Custom order';
   const amountClass = isSale ? styles.amountSale : styles.amountOrder;
-  const amountText =
-    item.kind === 'sale' || item.kind === 'custom-order-payment'
-      ? formatCurrency(item.amount)
-      : formatNumber(item.amount);
+  const amountText = formatCurrency(item.amount);
+  const title = isSale
+    ? item.title.replace(/^Sale /, `${t('Sale')} `)
+    : item.title.replace(/^Custom order /, `${t('Custom order')} `);
+  const detail = item.detail.replace(/(\d+) items$/, (_, count) => `${count} ${t('items')}`);
 
   return (
     <li className={styles.row}>
@@ -72,18 +75,18 @@ function ActivityRow({ item }) {
       </span>
       <div className={styles.body}>
         <div className={styles.titleRow}>
-          <span className={styles.itemTitle}>{item.title}</span>
+          <span className={styles.itemTitle}>{title}</span>
           <span className={amountClass}>{amountText}</span>
         </div>
         <div className={styles.metaRow}>
-          <span className={styles.kind}>{kindLabel}</span>
-          <span className={styles.dot} aria-hidden="true">
+          <span className={styles.kind}>{t(kindLabel)}</span>
+          <span className={styles.dot} aria-hidden="true"><T>
             &middot;
-          </span>
-          <span className={styles.detail}>{item.detail}</span>
-          <span className={styles.dot} aria-hidden="true">
+          </T></span>
+          <span className={styles.detail}>{detail}</span>
+          <span className={styles.dot} aria-hidden="true"><T>
             &middot;
-          </span>
+          </T></span>
           <span className={styles.time}>{timeAgo(item.at)}</span>
         </div>
       </div>

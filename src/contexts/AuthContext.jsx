@@ -6,7 +6,7 @@
  *
  * Exposes:
  *   {
- *     user,            // mock user object or null
+ *     user,            // server-validated user object or null
  *     role,            // 'OWNER' | 'EMPLOYEE' | null
  *     isAuthenticated, // boolean
  *     isLoading,       // true while the initial session restore is in flight
@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import * as authService from '../services/auth/authService.js';
+import * as authService from '../services/auth/apiAuthService.js';
 import { AuthContext } from './authContext.js';
 
 export function AuthProvider({ children }) {
@@ -33,6 +33,8 @@ export function AuthProvider({ children }) {
       try {
         const restored = await authService.getCurrentUser();
         if (!cancelled) setUser(restored);
+      } catch {
+        if (!cancelled) setUser(null);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -40,6 +42,12 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const expired = () => setUser(null);
+    window.addEventListener('ni-fashion:session-expired', expired);
+    return () => window.removeEventListener('ni-fashion:session-expired', expired);
   }, []);
 
   const login = useCallback(async (credentials) => {

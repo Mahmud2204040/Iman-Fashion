@@ -1,8 +1,7 @@
 ﻿/**
  * DashboardPage — the home of the authenticated app.
  *
- * Per FRONTEND_PLAN.md sec4, Phase 4 ships exactly four cards and they
- * are identical for OWNER and EMPLOYEE. Below the cards we render a
+ * Owner dashboard with four live KPI cards. Below the cards we render a
  * recent-activity feed and a quick-actions panel.
  *
  * The header is a calm greeting + long date — short, warm, and a
@@ -12,6 +11,7 @@
 import { useEffect, useState } from 'react';
 
 import { useAuth } from '../../hooks/useAuth.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useTicker } from '../../hooks/useTicker.js';
 import { ROLES } from '../../constants/roles.js';
 import { formatLongDate, greetingFor } from '../../utils/format.js';
@@ -19,19 +19,13 @@ import { formatLongDate, greetingFor } from '../../utils/format.js';
 import StatCard from '../../components/domain/dashboard/StatCard/index.js';
 import ActivityFeed from '../../components/domain/dashboard/ActivityFeed/index.js';
 import NotesWidget from '../../components/domain/dashboard/NotesWidget/index.js';
-import {
-  CalendarIcon,
-  CashHandIcon,
-  CustomOrderIcon,
-  ProductIcon,
-  SaleIcon,
-} from '../../components/icons/DashboardIcon.jsx';
 
 import { getDashboardSnapshot } from '../../services/dashboard/dashboardService.js';
 import styles from './DashboardPage.module.css';
 
 export default function DashboardPage() {
   const { user, role } = useAuth();
+  const { language, t } = useLocale();
   // useTicker keeps the displayed date in sync if the user keeps the
   // dashboard open across midnight.
   const now = useTicker(60_000);
@@ -39,6 +33,7 @@ export default function DashboardPage() {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,18 +57,18 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [role]);
+  }, [role, reloadKey]);
 
   const displayName =
     user?.username || user?.name || (role === ROLES.OWNER ? 'Owner' : 'Friend');
   const greeting = greetingFor(now);
-  const dateText = formatLongDate(now);
+  const dateText = formatLongDate(now, language);
 
   if (loading) {
     return (
       <main className={styles.page} aria-busy="true">
         <div className={styles.loadingState}>
-          <p className={styles.loadingText}>Loading dashboard…</p>
+          <p className={styles.loadingText}>{t('Loading dashboard…')}</p>
         </div>
       </main>
     );
@@ -84,8 +79,9 @@ export default function DashboardPage() {
       <main className={styles.page}>
         <div className={styles.errorState} role="alert">
           <p className={styles.errorText}>
-            {error || 'Dashboard unavailable.'}
+            {t(error || 'Dashboard unavailable.')}
           </p>
+          <button type="button" onClick={() => setReloadKey((value) => value + 1)}>{t('Try again')}</button>
         </div>
       </main>
     );
@@ -99,24 +95,14 @@ export default function DashboardPage() {
 
   return (
     <main className={styles.page}>
-      <section className={styles.heroHeader} aria-label="Greeting">
-        <div className={styles.heroText}>
-          <span className={styles.heroEyebrow}>
-            <span className={styles.heroEyebrowDot} aria-hidden="true" />
-            {greeting}
-          </span>
-          <h1 className={styles.heroTitle}>
-            Welcome back,{' '}
-            <span className={styles.heroHighlight}>{displayName}</span>
-          </h1>
-          <div className={styles.heroMeta}>
-            <span className={styles.headerDate}>
-              <span className={styles.headerDateIcon} aria-hidden="true">
-                <CalendarIcon size={13} strokeWidth={1.75} />
-              </span>
-              {dateText}
-            </span>
-          </div>
+      <section className={styles.heading} aria-label="Greeting">
+        <div>
+          <h1 className={styles.title}>{t(greeting)}</h1>
+          <p className={styles.subtitle}>{t('Welcome back,')} {displayName}</p>
+        </div>
+        <div className={styles.dateContext}>
+          <strong>{dateText}</strong>
+          <span>{t('Your shop at a glance')}</span>
         </div>
       </section>
 
@@ -126,43 +112,38 @@ export default function DashboardPage() {
       >
         {todaySales ? (
           <StatCard
-            icon={SaleIcon}
-            label="Today\u2019s sales"
+            label="Today’s sales"
             value={todaySales.value}
             kind="currency"
-            trend={todaySales.trend}
-            accent="info"
+            context={dateText}
+            to="/sales"
           />
         ) : null}
         {todayOrders ? (
           <StatCard
-            icon={CustomOrderIcon}
-            label="Today\u2019s custom orders"
+            label="Today’s custom orders"
             value={todayOrders.value}
             kind="number"
-            trend={todayOrders.trend}
-            accent="warning"
+            context={dateText}
+            to="/custom-orders"
           />
         ) : null}
         {currentCash ? (
           <StatCard
-            icon={CashHandIcon}
             label="Current cash"
             value={currentCash.value}
             kind="currency"
-            trend={currentCash.trend}
-            accent="success"
-            emphasis="highlight"
+            context="Current balance"
+            to="/cash"
           />
         ) : null}
         {totalStock ? (
           <StatCard
-            icon={ProductIcon}
             label="Total stock items"
             value={totalStock.value}
             kind="number"
-            trend={totalStock.trend}
-            accent="brand"
+            context="Items in stock"
+            to="/products"
           />
         ) : null}
       </section>

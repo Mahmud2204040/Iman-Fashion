@@ -4,13 +4,13 @@
  * Asserts the public API of `supplierService`:
  *   - getSuppliers returns sorted (by name) array of defensive clones
  *   - getSupplierById returns a clone for known ids, null otherwise
- *   - searchSuppliers matches by name / contactPerson / phone / category
+ *   - searchSuppliers matches by name / contactPerson / phone
  *   - createSupplier rejects empty name, missing phone, duplicate active name
  *   - createSupplier happy path returns a clone with generated id + audit
  *   - updateSupplier rejects empty name (post-creation edit)
  *   - setSupplierStatus toggles isActive through updateSupplier
  *   - computeSupplierTotals totals purchases/paid/due across supplied list
- *   - getAllSupplierPayments sorts newest-first, includes pairedCashOut
+ *   - getAllSupplierPayments sorts newest-first without synthetic cash transactions
  *   - forbidden role (EMPLOYEE) is rejected for mutations
  */
 import assert from 'node:assert/strict';
@@ -50,6 +50,8 @@ await test('getSuppliers — returns array sorted by name', async () => {
   const suppliers = await getSuppliers();
   assert.ok(Array.isArray(suppliers));
   assert.ok(suppliers.length >= 5, 'expected seed of >= 5 suppliers');
+  assert.ok(suppliers.every((supplier) => !Object.hasOwn(supplier, 'category')),
+    'supplier records must match the planned schema without category');
   for (let i = 1; i < suppliers.length; i += 1) {
     assert.ok(
       suppliers[i - 1].name.localeCompare(suppliers[i].name) <= 0,
@@ -84,9 +86,9 @@ await test('searchSuppliers — matches by name', async () => {
   assert.ok(hits.some((s) => s.name.toLowerCase().includes('aarong')));
 });
 
-await test('searchSuppliers — matches by category', async () => {
-  const hits = await searchSuppliers('Trims');
-  assert.ok(hits.some((s) => s.category === 'Trims & accessories'));
+await test('searchSuppliers — matches by phone', async () => {
+  const hits = await searchSuppliers('01722000222');
+  assert.ok(hits.some((s) => s.name === 'Bengal Buttons & Trims'));
 });
 
 await test('searchSuppliers — empty query returns full set', async () => {
@@ -135,8 +137,8 @@ await test('createSupplier — happy path returns clone with id + audit', async 
       contactPerson: 'Tester One',
       phone: '+8801790000000',
       email: 'x@y.example',
-      category: 'Test',
       notes: 'n/a',
+      category: 'ignored legacy field',
     },
     OWNER,
   );
@@ -145,6 +147,7 @@ await test('createSupplier — happy path returns clone with id + audit', async 
   assert.equal(created.createdBy, 'owner');
   assert.equal(created.createdByRole, ROLES.OWNER);
   assert.equal(created.isActive, true);
+  assert.equal(Object.hasOwn(created, 'category'), false);
 });
 
 await test('updateSupplier — updates notes + audit', async () => {
@@ -227,7 +230,7 @@ await test('computeSupplierTotals — ignores other suppliers', async () => {
   assert.equal(totals.dueTotal, 0);
 });
 
-await test('getAllSupplierPayments — sorts newest-first + paired row', async () => {
+await test('getAllSupplierPayments — sorts newest-first without synthetic cash row', async () => {
   const fakePurchases = [
     {
       id: 'pch-1',
@@ -242,16 +245,14 @@ await test('getAllSupplierPayments — sorts newest-first + paired row', async (
           createdBy: 'owner',
           createdByRole: ROLES.OWNER,
           createdAt: '2025-09-01T10:00:00Z',
-          cashOutId: 'cashout-x',
         },
         {
           amount: 200,
-          method: 'BKASH',
+          method: 'CASH',
           note: '',
           createdBy: 'owner',
           createdByRole: ROLES.OWNER,
           createdAt: '2025-09-05T10:00:00Z',
-          cashOutId: 'cashout-y',
         },
       ],
     },
@@ -260,9 +261,8 @@ await test('getAllSupplierPayments — sorts newest-first + paired row', async (
   assert.equal(all.length, 2);
   assert.equal(all[0].amount, 200, 'newest first');
   assert.equal(all[1].amount, 100);
-  assert.ok(all[0].pairedCashOut);
-  assert.equal(all[0].pairedCashOut.type, 'CASH_OUT');
-  assert.equal(all[0].pairedCashOut.referenceType, 'SUPPLIER_PAYMENT');
+  assert.equal(all[0].pairedCashOut, undefined);
+  assert.equal(all[0].purchaseId, 'pch-1');
 });
 
 console.log(`\n  ${passed} passed, ${failed} failed`);

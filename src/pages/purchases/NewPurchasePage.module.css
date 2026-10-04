@@ -1,0 +1,31 @@
+.overlay{background:rgba(15,18,16,.48);padding:20px}
+.dialog{width:min(820px,100%);max-height:min(92dvh,880px);border:1px solid #e4e0d6;border-radius:18px;background:#f7f6f1;box-shadow:0 24px 80px #111b1640}
+.dialog>header{padding:18px 22px 14px;border-bottom:0;align-items:flex-start;background:#fffdf8}
+.dialog>header h2{width:100%;font-weight:inherit}
+.dialog>header button{flex:none;border:1px solid #e4e0d6;background:#fffdf8}
+.dialog>div{padding:0 20px 16px;overflow-y:auto}
+.modalTitle{display:grid;gap:4px}
+.eyebrow{color:#799d3b;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.titleText{color:#172033;font-size:25px;font-weight:760;letter-spacing:-.04em;line-height:1.1}
+.subtitle{color:#7b8290;font-size:11px;font-weight:450;line-height:1.45}
+.form{display:grid;gap:12px}
+.card{padding:15px 16px;background:#fff;border:1px solid #e1e4e5;border-radius:10px;box-shadow:0 1px 3px #11182708}
+.card h3{margin:0 0 12px;color:#182336;font-size:14px;font-weight:750}
+.fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.fields label,.item label,.full{display:grid;gap:5px;min-width:0;color:#5c6677;font-size:10px;font-weight:700}
+.fields input,.fields select,.item input,.full textarea{width:100%;min-width:0;box-sizing:border-box;border:1px solid #dce2e8;border-radius:7px;padding:8px 10px;font:inherit;font-size:12px;font-weight:500;color:#172033;background:#fff;outline:none}
+.fields input:focus,.fields select:focus,.item input:focus,.full textarea:focus{border-color:#a7cd5c;box-shadow:0 0 0 3px #c7f36b55}
+.full{margin-top:12px}.full textarea{resize:vertical;min-height:52px}
+.heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.heading h3{margin:0}
+.addItem{min-height:31px;padding:0 11px;border:1px solid #dceab9;border-radius:7px;background:#edf8d0;color:#172033;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.itemHead,.item{display:grid;grid-template-columns:minmax(0,2fr) minmax(72px,.8fr) minmax(85px,.9fr) minmax(82px,.8fr) 30px;align-items:center;gap:9px}
+.itemHead{padding:8px 10px;color:#777f8d;background:#f8fafb;border:1px solid #e8edf0;border-bottom:0;border-radius:8px 8px 0 0;font-size:9px;font-weight:750;text-transform:uppercase}
+.itemList{display:grid;max-height:220px;overflow-y:auto;border:1px solid #e8edf0;border-radius:0 0 8px 8px;background:#fafbfc}
+.item{padding:8px 10px;border-top:1px solid #ebeff0}.item:first-child{border-top:0}
+.item label span{display:none}.item input{background:#fff}.item strong{color:#172033;font-size:11px;white-space:nowrap}
+.removeItem{width:26px;height:26px;border:0;border-radius:6px;background:#fff0f0;color:#c94d50;font-size:17px;cursor:pointer}.removeItem:disabled{opacity:.35;cursor:not-allowed}
+.total{display:flex;justify-content:flex-end;align-items:center;gap:20px;padding:12px 4px 0;color:#394458;font-size:11px}.total strong{color:#172033;font-size:20px}
+.actions{display:flex;align-items:center;justify-content:space-between;gap:16px}.actions p{margin:0;color:#7b8290;font-size:10px;line-height:1.4}.actions>div{display:flex;gap:8px;flex:none}.actions button{min-height:36px;padding:0 14px;border:1px solid #e1e4e5;border-radius:8px;background:#fff;color:#172033;font:inherit;font-size:11px;font-weight:700;cursor:pointer}.actions .submit{background:#171817;border-color:#171817;color:#fff}.actions button:disabled{opacity:.5;cursor:not-allowed}
+.error{margin:10px 0 0;padding:9px 12px;border:1px solid #efc7be;border-radius:8px;background:#fff4f0;color:#a1423d;font-size:12px}.error button{margin-left:8px;border:0;background:none;text-decoration:underline;color:inherit;cursor:pointer}
+@media(max-width:700px){.dialog{max-height:calc(100dvh - 24px)}.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.fields label:first-child{grid-column:1/-1}.itemHead{display:none}.itemList{border-radius:8px}.item{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.item label:first-child{grid-column:1/-1}.item label span{display:block}.item strong{justify-self:start}.removeItem{justify-self:end}.actions{align-items:flex-start;flex-direction:column}.actions>div{width:100%}.actions button{flex:1}}
+@media(max-width:480px){.overlay{padding:0}.dialog{width:100vw;height:100dvh;max-height:100dvh;border-radius:0}.dialog>header{padding:16px}.dialog>div{padding:0 14px 18px}.fields{grid-template-columns:1fr}.fields label:first-child{grid-column:auto}}

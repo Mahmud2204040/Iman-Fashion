@@ -15,6 +15,7 @@
  * stack declared in --font-family-base if the network is unavailable.
  */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap");
 
 *,
 *::before,
@@ -38,6 +39,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+html[lang="bn"] body {
+  font-family: "Noto Sans Bengali", "Inter", sans-serif;
 }
 
 /* Form controls inherit font + color so they don't look out of place. */

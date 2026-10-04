@@ -1,4 +1,5 @@
 import styles from './Button.module.css';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 
 /**
  * Reusable button.
@@ -31,8 +32,10 @@ function Button({
   children,
   className = '',
   onClick,
+  'aria-label': ariaLabel,
   ...rest
 }) {
+  const { t } = useLocale();
   const isDisabled = disabled || loading;
 
   const classes = [
@@ -60,12 +63,13 @@ function Button({
       className={classes}
       disabled={disabled}
       aria-busy={loading || undefined}
+      aria-label={typeof ariaLabel === 'string' ? t(ariaLabel) : ariaLabel}
       onClick={handleClick}
       {...rest}
     >
       {loading ? <SpinnerMark /> : leftIcon ? <span className={styles.icon}>{leftIcon}</span> : null}
       <span className={styles.label}>
-        {loading && loadingText ? loadingText : children}
+        {loading && loadingText ? (typeof loadingText === 'string' ? t(loadingText) : loadingText) : (typeof children === 'string' ? t(children) : children)}
       </span>
       {!loading && rightIcon ? <span className={styles.icon}>{rightIcon}</span> : null}
     </button>

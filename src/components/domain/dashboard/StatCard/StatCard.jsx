@@ -1,133 +1,28 @@
-import {
-  formatCurrency,
-  formatNumber,
-} from '../../../../utils/format.js';
+import { Link } from 'react-router-dom';
+
+import { useLocale } from '../../../../contexts/LocaleContext.jsx';
+import { formatCurrency, formatNumber } from '../../../../utils/format.js';
 import styles from './StatCard.module.css';
 
-/**
- * StatCard — a single KPI tile on the dashboard.
- *
- * Visual contract:
- *   - Icon badge in a tinted gradient (top-left) acts as a glanceable
- *     visual anchor.
- *   - Label sits below the badge in muted small-caps style.
- *   - Value is the focal point: large, tabular numerals, bold.
- *   - Delta chip sits to the right of the value, color-coded by sign.
- *   - Sparkline at the bottom shows the last 7 days as a 7-bar chart.
- *     This is intentionally minimal — just enough to suggest momentum.
- *
- * Props
- *   icon       Component   Required. SVG icon component (1x stroke).
- *   label      string      Required. Short label, e.g. "Today's sales".
- *   value      number      Required. Raw numeric value.
- *   kind       string      One of 'currency' | 'number' | 'plain'.
- *                          Defaults to 'currency' for the dashboard.
- *   delta      number      Optional. Fraction (0.124 = +12.4%) vs yesterday.
- *   trend      number[7]   Optional. Seven normalised (0..1) values for
- *                          the sparkline.
- *   accent     string      Optional. Tint for the icon badge gradient.
- *                          Defaults to the brand indigo.
- *   emphasis   string      Optional. 'normal' | 'highlight'. Highlight
- *                          adds a subtle gradient border to the card.
- */
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  kind = 'currency',
-  trend,
-  accent,
-  emphasis = 'normal',
-}) {
-  let valueText;
-  if (kind === 'currency') {
-    valueText = formatCurrency(value);
-  } else if (kind === 'number') {
-    valueText = formatNumber(value);
-  } else {
-    valueText = String(value);
-  }
+function StatCard({ label, value, kind = 'currency', context, to }) {
+  const { t } = useLocale();
+  const valueText = kind === 'currency'
+    ? formatCurrency(value)
+    : kind === 'number'
+      ? formatNumber(value)
+      : String(value);
 
-  const cardClassName = [
-    styles.card,
-    emphasis === 'highlight' ? styles.cardHighlight : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const badgeClassName = [
-    styles.badge,
-    accent ? styles[`badge-${accent}`] : styles.badgeBrand,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  return (
-    <article className={cardClassName}>
-      <div className={styles.head}>
-        <span className={badgeClassName} aria-hidden="true">
-          {Icon ? <Icon size={20} strokeWidth={1.75} /> : null}
-        </span>
-        <span className={styles.label}>{label}</span>
-      </div>
-
-      <div className={styles.valueRow}>
-        <span className={styles.value}>{valueText}</span>
-      </div>
-
-      {Array.isArray(trend) && trend.length > 0 ? (
-        <Sparkline data={trend} accent={accent} />
-      ) : null}
-    </article>
+  const content = (
+    <>
+      <span className={styles.label}>{t(label)}</span>
+      <strong className={styles.value}>{valueText}</strong>
+      {context ? <span className={styles.context}>{t(context)}</span> : null}
+    </>
   );
-}
 
-/**
- * Sparkline — pure inline SVG, 7 bars.
- *
- * Data is expected to be normalised 0..1. The component scales the bar
- * heights to fit the viewBox. The last bar is coloured to draw the eye
- * to "today".
- */
-function Sparkline({ data, accent }) {
-  const W = 100;
-  const H = 28;
-  const barWidth = 8;
-  const gap = (W - barWidth * data.length) / (data.length - 1);
-  const max = Math.max(...data, 1);
-
-  const toneClass = accent ? styles.sparkBarAccent : styles.sparkBarUp;
-
-  return (
-    <svg
-      className={styles.spark}
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {data.map((v, i) => {
-        const h = Math.max(2, (v / max) * (H - 4));
-        const x = i * (barWidth + gap);
-        const y = H - h;
-        const isLast = i === data.length - 1;
-        return (
-          <rect
-            key={i}
-            x={x}
-            y={y}
-            width={barWidth}
-            height={h}
-            rx={1.5}
-            ry={1.5}
-            className={`${styles.sparkBar} ${toneClass} ${
-              isLast ? styles.sparkBarLast : ''
-            }`}
-          />
-        );
-      })}
-    </svg>
-  );
+  return to
+    ? <Link className={styles.card} to={to} aria-label={t(label)}>{content}</Link>
+    : <article className={styles.card}>{content}</article>;
 }
 
 export default StatCard;

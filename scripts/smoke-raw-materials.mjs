@@ -6,7 +6,7 @@
  *   - createRawMaterial rejects empty name, non-numeric quantity, employee role
  *   - createRawMaterial happy path returns a clone with generated id + audit
  *   - updateRawMaterial can patch name/qty/cost; rejects employee role
- *   - fields are scoped to itemName, quantity, description, date, notes, purchaseCost
+ *   - fields are scoped to itemName, quantity, description, date, purchaseCost
  *   - owner-only writes
  *   - raw materials never produce a cash row
  */
@@ -76,7 +76,6 @@ await test('createRawMaterial happy path returns clone with full audit', async (
       quantity: 50,
       description: 'White cotton roll',
       date: '2026-09-15',
-      notes: 'From supplier A',
       purchaseCost: 2500,
     },
     OWNER,
@@ -85,6 +84,7 @@ await test('createRawMaterial happy path returns clone with full audit', async (
   assert.equal(created.itemName, 'Cotton fabric');
   assert.equal(created.quantity, 50);
   assert.equal(created.purchaseCost, 2500);
+  assert.equal('notes' in created, false);
   assert.equal(created.createdBy, 'owner');
   assert.equal(created.createdByRole, ROLES.OWNER);
 });
@@ -97,13 +97,23 @@ await test('createRawMaterial allows purchaseCost to be omitted', async () => {
   assert.equal(created.purchaseCost, null);
 });
 
-await test('createRawMaterial allows empty description and notes', async () => {
+await test('createRawMaterial allows empty description and has no notes field', async () => {
   const created = await createRawMaterial(
     { itemName: 'Silk piece', quantity: 5, date: '2026-09-15' },
     OWNER,
   );
   assert.equal(created.description, '');
-  assert.equal(created.notes, '');
+  assert.equal('notes' in created, false);
+});
+
+await test('create and edit do not introduce a notes field', async () => {
+  const created = await createRawMaterial(
+    { itemName: 'No notes contract', quantity: 2, date: '2026-09-15', notes: 'ignored' },
+    OWNER,
+  );
+  const updated = await updateRawMaterial(created.id, { notes: 'still ignored' }, OWNER);
+  assert.equal('notes' in created, false);
+  assert.equal('notes' in updated, false);
 });
 
 await test('updateRawMaterial can patch quantity and cost', async () => {

@@ -1,0 +1,586 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  EMPLOYEE
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SaleStatus {
+  COMPLETED
+  VOIDED
+}
+
+enum SaleSettlementSource {
+  DIRECT_CASH
+  REPLACEMENT_NETTED
+}
+
+enum SaleCorrectionKind {
+  VOID
+  REPLACE
+}
+
+enum CustomOrderStatus {
+  PENDING
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum PurchaseStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+enum CashTransactionType {
+  OPENING
+  CASH_IN
+  CASH_OUT
+  CASH_ADJUSTMENT
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  username     String    @unique @db.VarChar(100)
+  name         String    @db.VarChar(150)
+  phone        String?   @db.VarChar(30)
+  email        String?   @db.VarChar(255)
+  passwordHash String    @map("password_hash")
+  authVersion  Int       @default(0) @map("auth_version")
+  role         UserRole
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sessions     Session[]
+  customersCreated Customer[] @relation("CustomerCreatedBy")
+  customersUpdated Customer[] @relation("CustomerUpdatedBy")
+  childrenCreated Child[] @relation("ChildCreatedBy")
+  childrenUpdated Child[] @relation("ChildUpdatedBy")
+  productsCreated Product[] @relation("ProductCreatedBy")
+  productsUpdated Product[] @relation("ProductUpdatedBy")
+  salesCreated Sale[] @relation("SaleCreatedBy")
+  salesUpdated Sale[] @relation("SaleUpdatedBy")
+  ordersCreated CustomOrder[] @relation("OrderCreatedBy")
+  ordersUpdated CustomOrder[] @relation("OrderUpdatedBy")
+  orderStatusesChanged CustomOrder[] @relation("OrderStatusChangedBy")
+  ordersMarkedReady CustomOrder[] @relation("OrderReadyBy")
+  ordersDelivered CustomOrder[] @relation("OrderDeliveredBy")
+  ordersCancelled CustomOrder[] @relation("OrderCancelledBy")
+  orderPaymentsCreated CustomOrderPayment[] @relation("OrderPaymentCreatedBy")
+  suppliersCreated Supplier[] @relation("SupplierCreatedBy")
+  suppliersUpdated Supplier[] @relation("SupplierUpdatedBy")
+  purchasesCreated Purchase[] @relation("PurchaseCreatedBy")
+  purchasesUpdated Purchase[] @relation("PurchaseUpdatedBy")
+  supplierPaymentsCreated SupplierPayment[] @relation("SupplierPaymentCreatedBy")
+  rawMaterialsCreated RawMaterial[] @relation("RawMaterialCreatedBy")
+  rawMaterialsUpdated RawMaterial[] @relation("RawMaterialUpdatedBy")
+  expenseCategoriesCreated ExpenseCategory[] @relation("ExpenseCategoryCreatedBy")
+  expenseCategoriesUpdated ExpenseCategory[] @relation("ExpenseCategoryUpdatedBy")
+  expensesCreated Expense[] @relation("ExpenseCreatedBy")
+  expensesUpdated Expense[] @relation("ExpenseUpdatedBy")
+  stockAdjustmentsCreated StockAdjustment[] @relation("StockAdjustmentCreatedBy")
+  cashTransactionsCreated CashTransaction[] @relation("CashTransactionCreatedBy")
+  receiptsUploaded PurchaseReceipt[] @relation("ReceiptUploadedBy")
+  cashReconciliationsCreated CashReconciliation[] @relation("ReconciliationCreatedBy")
+  saleCorrections SaleCorrection[] @relation("SaleCorrectionActor")
+  financialEvents FinancialEvent[] @relation("FinancialEventActor")
+
+  @@map("users")
+}
+
+model Session {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  tokenHash     String   @unique @map("token_hash") @db.Char(64)
+  csrfToken     String   @map("csrf_token") @db.VarChar(43)
+  authVersion   Int      @default(0) @map("auth_version")
+  expiresAt     DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Customer {
+  id String @id @default(uuid()) @db.Uuid
+  customerCode String @unique @map("customer_code") @db.VarChar(30)
+  name String @db.VarChar(150)
+  phone String @db.VarChar(30)
+  address String? @db.Text
+  notes String? @db.Text
+  status RecordStatus @default(ACTIVE)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy User @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("CustomerUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  children Child[]
+  sales Sale[]
+  customOrders CustomOrder[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("customers")
+}
+
+model Child {
+  id String @id @default(uuid()) @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+  name String @db.VarChar(150)
+  initialClass Int @map("initial_class") @db.SmallInt
+  schoolName String @map("school_name") @db.VarChar(255)
+  registeredDate DateTime @map("registered_date") @db.Date
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy User @relation("ChildCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("ChildUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("children")
+}
+
+model Product {
+  id String @id @default(uuid()) @db.Uuid
+  productCode String @unique @map("product_code") @db.VarChar(50)
+  name String @db.VarChar(255)
+  purchasePrice Decimal? @map("purchase_price") @db.Decimal(12, 2)
+  stockQuantity Int @default(0) @map("stock_quantity")
+  notes String? @db.Text
+  status RecordStatus @default(ACTIVE)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy User @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("ProductUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  saleItems SaleItem[]
+  stockAdjustments StockAdjustment[]
+
+  @@index([name])
+  @@index([status])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("products")
+}
+
+model Sale {
+  id String @id @default(uuid()) @db.Uuid
+  salesCode String @unique @map("sales_code") @db.VarChar(50)
+  customerId String @map("customer_id") @db.Uuid
+  totalAmount Decimal @map("total_amount") @db.Decimal(12, 2)
+  status SaleStatus @default(COMPLETED)
+  settlementSource SaleSettlementSource @default(DIRECT_CASH) @map("settlement_source")
+  saleDate DateTime @map("sale_date") @db.Timestamptz(6)
+  notes String? @db.Text
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy User @relation("SaleCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("SaleUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  items SaleItem[]
+  correctionFrom SaleCorrection? @relation("CorrectionOriginal")
+  correctionInto SaleCorrection? @relation("CorrectionReplacement")
+
+  @@unique([createdById, requestKey])
+  @@index([customerId, saleDate])
+  @@index([saleDate])
+  @@index([updatedById])
+  @@map("sales")
+}
+
+model SaleCorrection {
+  id String @id @default(uuid()) @db.Uuid
+  kind SaleCorrectionKind
+  originalSaleId String @unique @map("original_sale_id") @db.Uuid
+  replacementSaleId String? @unique @map("replacement_sale_id") @db.Uuid
+  originalTotal Decimal @map("original_total") @db.Decimal(12, 2)
+  replacementTotal Decimal? @map("replacement_total") @db.Decimal(12, 2)
+  cashDelta Decimal @map("cash_delta") @db.Decimal(12, 2)
+  reason String @db.Text
+  correctedById String @map("corrected_by") @db.Uuid
+  correctedAt DateTime @default(now()) @map("corrected_at") @db.Timestamptz(6)
+  requestKey String @map("request_key") @db.VarChar(100)
+  requestFingerprint String @map("request_fingerprint") @db.Char(64)
+  originalSale Sale @relation("CorrectionOriginal", fields: [originalSaleId], references: [id], onDelete: Restrict)
+  replacementSale Sale? @relation("CorrectionReplacement", fields: [replacementSaleId], references: [id], onDelete: Restrict)
+  correctedBy User @relation("SaleCorrectionActor", fields: [correctedById], references: [id], onDelete: Restrict)
+
+  @@unique([correctedById, requestKey])
+  @@index([correctedAt])
+  @@map("sale_corrections")
+}
+
+model FinancialEvent {
+  id String @id @default(uuid()) @db.Uuid
+  eventKey String @unique @map("event_key") @db.VarChar(180)
+  metric String @db.VarChar(40)
+  eventKind String @map("event_kind") @db.VarChar(50)
+  sourceType String @map("source_type") @db.VarChar(50)
+  sourceId String @map("source_id") @db.Uuid
+  amount Decimal @db.Decimal(14, 2)
+  businessDate DateTime @map("business_date") @db.Date
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  actorId String @map("actor_id") @db.Uuid
+  customerId String? @map("customer_id") @db.Uuid
+  productId String? @map("product_id") @db.Uuid
+  supplierId String? @map("supplier_id") @db.Uuid
+  categoryId String? @map("category_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor User @relation("FinancialEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([metric, businessDate])
+  @@index([sourceType, sourceId])
+  @@index([customerId, businessDate])
+  @@index([productId, businessDate])
+  @@map("financial_events")
+}
+
+model SaleItem {
+  id String @id @default(uuid()) @db.Uuid
+  saleId String @map("sale_id") @db.Uuid
+  productId String @map("product_id") @db.Uuid
+  productNameAtSale String @map("product_name_at_sale") @db.VarChar(255)
+  quantity Int
+  sellingPrice Decimal @map("selling_price") @db.Decimal(12, 2)
+  purchaseCostAtSale Decimal? @map("purchase_cost_at_sale") @db.Decimal(12, 2)
+  lineTotal Decimal @map("line_total") @db.Decimal(12, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([saleId, productId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model CustomOrder {
+  id String @id @default(uuid()) @db.Uuid
+  orderCode String @unique @map("order_code") @db.VarChar(50)
+  customerId String @map("customer_id") @db.Uuid
+  productName String @map("product_name") @db.VarChar(255)
+  description String? @db.Text
+  quantity Int
+  totalPrice Decimal @map("total_price") @db.Decimal(12, 2)
+  expectedDeliveryDate DateTime @map("expected_delivery_date") @db.Date
+  orderDate DateTime @map("order_date") @db.Timestamptz(6)
+  deliveryDate DateTime? @map("delivery_date") @db.Timestamptz(6)
+  status CustomOrderStatus @default(PENDING)
+  notes String? @db.Text
+  statusChangedAt DateTime? @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById String? @map("status_changed_by") @db.Uuid
+  readyAt DateTime? @map("ready_at") @db.Timestamptz(6)
+  readyById String? @map("ready_by") @db.Uuid
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz(6)
+  deliveredById String? @map("delivered_by") @db.Uuid
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String? @map("cancelled_by") @db.Uuid
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  createdBy User @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("OrderUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  statusChangedBy User? @relation("OrderStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: Restrict)
+  readyBy User? @relation("OrderReadyBy", fields: [readyById], references: [id], onDelete: Restrict)
+  deliveredBy User? @relation("OrderDeliveredBy", fields: [deliveredById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("OrderCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  payments CustomOrderPayment[]
+
+  @@unique([createdById, requestKey])
+  @@index([customerId, status])
+  @@index([expectedDeliveryDate])
+  @@index([updatedById])
+  @@index([statusChangedById])
+  @@index([readyById])
+  @@index([deliveredById])
+  @@index([cancelledById])
+  @@map("custom_orders")
+}
+
+model CustomOrderPayment {
+  id String @id @default(uuid()) @db.Uuid
+  customOrderId String @map("custom_order_id") @db.Uuid
+  amount Decimal @db.Decimal(12, 2)
+  paymentDate DateTime @map("payment_date") @db.Timestamptz(6)
+  notes String? @db.Text
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  customOrder CustomOrder @relation(fields: [customOrderId], references: [id], onDelete: Restrict)
+  createdBy User @relation("OrderPaymentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([createdById, requestKey])
+  @@index([customOrderId, paymentDate])
+  @@map("custom_order_payments")
+}
+
+model Supplier {
+  id String @id @default(uuid()) @db.Uuid
+  supplierCode String @unique @map("supplier_code") @db.VarChar(50)
+  name String @db.VarChar(150)
+  phone String? @db.VarChar(30)
+  address String? @db.Text
+  notes String? @db.Text
+  status RecordStatus @default(ACTIVE)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy User @relation("SupplierCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("SupplierUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  purchases Purchase[]
+  payments SupplierPayment[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("suppliers")
+}
+
+model Purchase {
+  id String @id @default(uuid()) @db.Uuid
+  purchaseCode String @unique @map("purchase_code") @db.VarChar(50)
+  supplierId String @map("supplier_id") @db.Uuid
+  totalAmount Decimal @map("total_amount") @db.Decimal(12, 2)
+  purchaseDate DateTime @map("purchase_date") @db.Timestamptz(6)
+  status PurchaseStatus @default(DRAFT)
+  notes String? @db.Text
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  createdBy User @relation("PurchaseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("PurchaseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  items PurchaseItem[]
+  payments SupplierPayment[]
+  receipts PurchaseReceipt[]
+
+  @@unique([createdById, requestKey])
+  @@index([supplierId, purchaseDate])
+  @@index([purchaseDate])
+  @@index([status])
+  @@index([updatedById])
+  @@unique([id, supplierId])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id String @id @default(uuid()) @db.Uuid
+  purchaseId String @map("purchase_id") @db.Uuid
+  itemName String @map("item_name") @db.VarChar(255)
+  quantity Decimal @db.Decimal(12, 2)
+  purchaseCost Decimal @map("purchase_cost") @db.Decimal(12, 2)
+  description String? @db.Text
+  notes String? @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+
+  @@index([purchaseId])
+  @@map("purchase_items")
+}
+
+model SupplierPayment {
+  id String @id @default(uuid()) @db.Uuid
+  supplierId String @map("supplier_id") @db.Uuid
+  purchaseId String @map("purchase_id") @db.Uuid
+  amount Decimal @db.Decimal(12, 2)
+  paymentDate DateTime @map("payment_date") @db.Timestamptz(6)
+  notes String? @db.Text
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchase Purchase @relation(fields: [purchaseId, supplierId], references: [id, supplierId], onDelete: Restrict)
+  createdBy User @relation("SupplierPaymentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  receipts PurchaseReceipt[]
+
+  @@unique([createdById, requestKey])
+  @@unique([id, purchaseId])
+  @@index([supplierId, paymentDate])
+  @@index([purchaseId, paymentDate])
+  @@map("supplier_payments")
+}
+
+model RawMaterial {
+  id String @id @default(uuid()) @db.Uuid
+  itemName String @map("item_name") @db.VarChar(255)
+  quantity Decimal @db.Decimal(12, 2)
+  description String? @db.Text
+  date DateTime @db.Date
+  purchaseCost Decimal? @map("purchase_cost") @db.Decimal(12, 2)
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy User @relation("RawMaterialCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("RawMaterialUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([date])
+  @@index([itemName])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("raw_materials")
+}
+
+model ExpenseCategory {
+  id String @id @default(uuid()) @db.Uuid
+  name String @db.VarChar(100)
+  normalizedName String @unique @map("normalized_name") @db.VarChar(100)
+  description String? @db.Text
+  isActive Boolean @default(true) @map("is_active")
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy User @relation("ExpenseCategoryCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("ExpenseCategoryUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+  expenses Expense[]
+
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id String @id @default(uuid()) @db.Uuid
+  expenseCategoryId String @map("expense_category_id") @db.Uuid
+  amount Decimal @db.Decimal(12, 2)
+  expenseDate DateTime @map("expense_date") @db.Date
+  description String? @db.Text
+  createdById String @map("created_by") @db.Uuid
+  updatedById String? @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  category ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Restrict)
+  createdBy User @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User? @relation("ExpenseUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@index([expenseDate])
+  @@index([expenseCategoryId, expenseDate])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("expenses")
+}
+
+model StockAdjustment {
+  id String @id @default(uuid()) @db.Uuid
+  productId String @map("product_id") @db.Uuid
+  quantityChange Int @map("quantity_change")
+  reason String @db.Text
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdBy User @relation("StockAdjustmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([createdById, requestKey])
+  @@index([productId, createdAt])
+  @@map("stock_adjustments")
+}
+
+model CashTransaction {
+  id String @id @default(uuid()) @db.Uuid
+  ledgerSequence BigInt @unique @default(autoincrement()) @map("ledger_sequence")
+  transactionType CashTransactionType @map("transaction_type")
+  amount Decimal @db.Decimal(12, 2)
+  referenceType String @map("reference_type") @db.VarChar(50)
+  referenceId String? @map("reference_id") @db.Uuid
+  reason String @db.Text
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdById String @map("created_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy User @relation("CashTransactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  adjustmentFor CashReconciliation? @relation("ReconciliationAdjustment")
+
+  @@unique([createdById, requestKey])
+  @@index([occurredAt, ledgerSequence])
+  @@index([referenceType, referenceId])
+  @@map("cash_transactions")
+}
+
+model PurchaseReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  purchaseId String @map("purchase_id") @db.Uuid
+  supplierPaymentId String? @map("supplier_payment_id") @db.Uuid
+  storageKey String @map("storage_key") @db.Text
+  fileName String @map("file_name") @db.VarChar(255)
+  mimeType String @map("mime_type") @db.VarChar(100)
+  sizeBytes BigInt @map("size_bytes")
+  uploadedById String @map("uploaded_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  supplierPayment SupplierPayment? @relation(fields: [supplierPaymentId, purchaseId], references: [id, purchaseId], onDelete: Restrict)
+  uploadedBy User @relation("ReceiptUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([purchaseId, createdAt])
+  @@index([supplierPaymentId])
+  @@index([uploadedById])
+  @@map("purchase_receipts")
+}
+
+model CashReconciliation {
+  id String @id @default(uuid()) @db.Uuid
+  businessDate DateTime @map("business_date") @db.Date
+  countedAt DateTime @map("counted_at") @db.Timestamptz(6)
+  expectedCash Decimal @map("expected_cash") @db.Decimal(12, 2)
+  physicalCash Decimal @map("physical_cash") @db.Decimal(12, 2)
+  difference Decimal @db.Decimal(12, 2)
+  ledgerSequenceAtCount BigInt @map("ledger_sequence_at_count")
+  notes String? @db.Text
+  reconciledById String @map("reconciled_by") @db.Uuid
+  adjustmentTransactionId String? @unique @map("adjustment_transaction_id") @db.Uuid
+  supersedesId String? @map("supersedes_id") @db.Uuid
+  requestKey String? @map("request_key") @db.VarChar(100)
+  requestFingerprint String? @map("request_fingerprint") @db.Char(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  reconciledBy User @relation("ReconciliationCreatedBy", fields: [reconciledById], references: [id], onDelete: Restrict)
+  adjustmentTransaction CashTransaction? @relation("ReconciliationAdjustment", fields: [adjustmentTransactionId], references: [id], onDelete: Restrict)
+  supersedes CashReconciliation? @relation("Recount", fields: [supersedesId], references: [id], onDelete: Restrict)
+  supersededBy CashReconciliation[] @relation("Recount")
+
+  @@unique([reconciledById, requestKey])
+  @@index([businessDate, countedAt])
+  @@index([supersedesId])
+  @@map("cash_reconciliations")
+}

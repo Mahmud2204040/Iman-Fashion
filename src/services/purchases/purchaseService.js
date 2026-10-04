@@ -8,23 +8,22 @@
  *   - Owner-only module
  *   - Single purchase can hold multiple line items (supplier orders
  *     typically span several fabrics / trims)
- *   - Supplier payments are SEPARATE from shop cash; they never
- *     auto-create a CASH_OUT row in the cash ledger (a paired row
- *     is surfaced on the supplier side for the record)
- *   - Receipt upload is a local mock — we store a `receiptUrl`
- *     (a data URL or external placeholder) for preview only
+ *   - Supplier payments are SEPARATE from shop cash and never
+ *     auto-create a CASH_OUT row in the cash ledger.
+ *   - Receipt upload is an in-memory mock gallery of data URLs and metadata.
  *
  * Status lifecycle:
  *   DRAFT  → ORDERED   → RECEIVED
- *                 ↘     CANCELLED
+ *     ↘ CANCELLED (only with no payments)
  *
- * Status transitions are explicit (owner-driven). Cancellation does
- * NOT auto-reverse payments — owner handles that manually.
+ * Status transitions are explicit (owner-driven). RECEIVED cannot be cancelled.
  *
  * Real backend will replace this file entirely.
  */
 import { ROLES } from '../../constants/roles.js';
 import { delay } from '../delay.js';
+import { getSupplierById, getSuppliers } from '../suppliers/supplierService.js';
+import { cashBusinessDate, cashDayStart } from '../../utils/cashDate.js';
 
 /* -------------------------------------------------------------------------- */
 /* Mock purchases                                                               */
@@ -58,17 +57,16 @@ const PURCHASES = [
     ],
     total: 23000,
     paidTotal: 23000,
-    notes: 'Full prepayment via bKash — cleared 2025-08-22.',
+    notes: 'Full cash payment — cleared 2025-08-22.',
     payments: [
       {
         id: 'pay-pch-001-1',
         amount: 23000,
-        method: 'BKASH',
+        method: 'CASH',
         note: 'Full prepayment',
         createdBy: 'owner',
         createdByRole: ROLES.OWNER,
         createdAt: '2025-08-22T11:00:00Z',
-        cashOutId: 'cashout-pch-001-1',
       },
     ],
     receiptUrl: null,
@@ -123,7 +121,6 @@ const PURCHASES = [
         createdBy: 'owner',
         createdByRole: ROLES.OWNER,
         createdAt: '2025-09-01T16:00:00Z',
-        cashOutId: 'cashout-pch-002-1',
       },
     ],
     receiptUrl: null,
@@ -203,12 +200,11 @@ const PURCHASES = [
       {
         id: 'pay-pch-004-1',
         amount: 12000,
-        method: 'BANK',
+        method: 'CASH',
         note: 'Wire transfer — cleared same-day',
         createdBy: 'owner',
         createdByRole: ROLES.OWNER,
         createdAt: '2025-09-09T10:00:00Z',
-        cashOutId: 'cashout-pch-004-1',
       },
     ],
     receiptUrl: null,
@@ -219,14 +215,6 @@ const PURCHASES = [
     createdAt: '2025-09-08T13:30:00Z',
     updatedAt: '2025-09-11T15:00:00Z',
   },
-];
-
-const SUPPLIERS_REF = [
-  { id: 'sup-001', name: 'Aarong Fabrics Ltd.' },
-  { id: 'sup-002', name: 'Bengal Buttons & Trims' },
-  { id: 'sup-003', name: 'Deshi Dyeing Works' },
-  { id: 'sup-004', name: 'Garments Packaging Co.' },
-  { id: 'sup-005', name: 'Local Tailoring House' },
 ];
 
 export const PURCHASE_STATUSES = Object.freeze([
@@ -247,6 +235,7 @@ function clone(p) {
     ...p,
     items: (p.items || []).map((it) => ({ ...it })),
     payments: (p.payments || []).map((pay) => ({ ...pay })),
+    receipts: (p.receipts || []).map((receipt) => ({ ...receipt })),
   };
 }
 
@@ -286,8 +275,9 @@ function summarizeItems(items) {
 const OWNER_ROLE = [ROLES.OWNER];
 
 export async function listSuppliersForPurchase() {
-  await delay(60);
-  return SUPPLIERS_REF.map((s) => ({ id: s.id, name: s.name }));
+  return (await getSuppliers())
+    .filter((supplier) => supplier.isActive)
+    .map((supplier) => ({ id: supplier.id, name: supplier.name }));
 }
 
 export async function getPurchases() {
@@ -325,8 +315,8 @@ export async function createPurchase(payload = {}, { actor } = {}) {
     throw err;
   }
 
-  const supplier = SUPPLIERS_REF.find((s) => s.id === supplierId);
-  if (!supplier) {
+  const supplier = await getSupplierById(supplierId);
+  if (!supplier || !supplier.isActive) {
     const err = new Error('Selected supplier could not be found.');
     err.code = 'SUPPLIER_NOT_FOUND';
     throw err;
@@ -374,6 +364,15 @@ export async function createPurchase(payload = {}, { actor } = {}) {
 
   const total = summarizeItems(cleanedItems);
   const now = new Date();
+  const purchaseDate = String(payload.purchaseDate || cashBusinessDate(now));
+  let orderedAt;
+  try {
+    orderedAt = cashDayStart(purchaseDate).toISOString();
+  } catch {
+    const err = new Error('Enter a valid purchase date.');
+    err.code = 'INVALID_PURCHASE_DATE';
+    throw err;
+  }
   const code = nextPurchaseCodeFor(now);
   const id = 'pch-' + String(PURCHASES.length + 1).padStart(3, '0');
 
@@ -385,7 +384,7 @@ export async function createPurchase(payload = {}, { actor } = {}) {
     code,
     supplierId,
     supplierName: supplierName || supplier.name,
-    orderedAt: now.toISOString(),
+    orderedAt,
     expectedAt: payload.expectedAt || null,
     receivedAt: null,
     status: 'DRAFT',
@@ -394,7 +393,7 @@ export async function createPurchase(payload = {}, { actor } = {}) {
     paidTotal: 0,
     notes: String(payload.notes || '').trim(),
     payments: [],
-    receiptUrl: null,
+    receipts: [],
     createdBy,
     createdByRole,
     updatedBy: createdBy,
@@ -405,8 +404,6 @@ export async function createPurchase(payload = {}, { actor } = {}) {
   PURCHASES.push(purchase);
   return clone(purchase);
 }
-
-let cashOutSeq = 50;
 
 export async function recordPurchasePayment(
   purchaseId,
@@ -423,9 +420,15 @@ export async function recordPurchasePayment(
     throw err;
   }
   const purchase = PURCHASES[idx];
-  if (purchase.status === 'CANCELLED') {
-    const err = new Error('Cannot record payment on a cancelled purchase.');
-    err.code = 'CANCELLED';
+  if (purchase.status !== 'ORDERED' && purchase.status !== 'RECEIVED') {
+    const err = new Error('Payments are allowed only after a purchase is ordered.');
+    err.code = 'PAYMENT_STATUS';
+    throw err;
+  }
+
+  if (String(payment.method || 'CASH').toUpperCase() !== 'CASH') {
+    const err = new Error('Supplier payments must be cash.');
+    err.code = 'CASH_ONLY';
     throw err;
   }
 
@@ -447,8 +450,6 @@ export async function recordPurchasePayment(
     throw err;
   }
 
-  cashOutSeq += 1;
-  const cashOutId = 'cashout-pch-' + String(cashOutSeq).padStart(3, '0');
   const payId =
     'pay-' + purchase.id + '-' + ((purchase.payments || []).length + 1);
   const now = new Date();
@@ -458,12 +459,11 @@ export async function recordPurchasePayment(
   const paymentRow = {
     id: payId,
     amount,
-    method: String(payment.method || 'CASH').toUpperCase(),
+    method: 'CASH',
     note: String(payment.note || '').trim(),
     createdBy,
     createdByRole,
     createdAt: now.toISOString(),
-    cashOutId,
   };
   purchase.payments.push(paymentRow);
   purchase.paidTotal = (purchase.payments || []).reduce(
@@ -474,19 +474,8 @@ export async function recordPurchasePayment(
   purchase.updatedByRole = createdByRole;
   purchase.updatedAt = now.toISOString();
 
-  const pairedCashOut = {
-    id: cashOutId,
-    type: 'CASH_OUT',
-    amount,
-    referenceType: 'SUPPLIER_PAYMENT',
-    referenceId: purchase.id,
-    reason: 'Supplier payment — ' + purchase.code,
-    createdBy,
-    createdByRole,
-    createdAt: now.toISOString(),
-  };
   PURCHASES[idx] = purchase;
-  return { purchase: clone(purchase), pairedCashOut };
+  return { purchase: clone(purchase) };
 }
 
 export async function setPurchaseStatus(id, nextStatus, { actor } = {}) {
@@ -505,6 +494,22 @@ export async function setPurchaseStatus(id, nextStatus, { actor } = {}) {
     throw err;
   }
   const purchase = PURCHASES[idx];
+  const transitions = {
+    DRAFT: ['ORDERED', 'CANCELLED'],
+    ORDERED: ['RECEIVED', 'CANCELLED'],
+    RECEIVED: [],
+    CANCELLED: [],
+  };
+  if (!transitions[purchase.status].includes(target)) {
+    const err = new Error(`Cannot change ${purchase.status} to ${target}.`);
+    err.code = 'INVALID_TRANSITION';
+    throw err;
+  }
+  if (target === 'CANCELLED' && (purchase.payments || []).length > 0) {
+    const err = new Error('A purchase with payments cannot be cancelled.');
+    err.code = 'PAID_PURCHASE';
+    throw err;
+  }
   purchase.status = target;
   if (target === 'RECEIVED' && !purchase.receivedAt) {
     purchase.receivedAt = new Date().toISOString();
@@ -543,16 +548,36 @@ export async function updatePurchase(id, patch = {}, { actor } = {}) {
   return clone(target);
 }
 
-export async function attachPurchaseReceipt(
-  purchaseId,
-  receiptUrl,
-  { actor } = {},
-) {
+export async function attachPurchaseReceipt(purchaseId, proof, { actor } = {}) {
   requireRole({ actor }, OWNER_ROLE);
   await delay(80);
   const idx = PURCHASES.findIndex((p) => p.id === purchaseId);
   if (idx === -1) return null;
-  PURCHASES[idx].receiptUrl = receiptUrl || null;
+  const input = typeof proof === 'string' ? { dataUrl: proof, name: 'Receipt image', type: 'image/png', size: 0 } : proof || {};
+  const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!allowed.includes(input.type) || Number(input.size || 0) > 5 * 1024 * 1024 || !String(input.dataUrl || '').startsWith('data:image/')) {
+    const err = new Error('Use a JPG, PNG or WebP image of 5 MB or less.');
+    err.code = 'INVALID_RECEIPT';
+    throw err;
+  }
+  if (input.paymentId && !(PURCHASES[idx].payments || []).some((pay) => pay.id === input.paymentId)) {
+    const err = new Error('Select a payment from this purchase.');
+    err.code = 'INVALID_PAYMENT_LINK';
+    throw err;
+  }
+  const receipts = PURCHASES[idx].receipts || [];
+  receipts.push({
+    id: `receipt-${purchaseId}-${receipts.length + 1}`,
+    purchaseId,
+    paymentId: input.paymentId || null,
+    name: String(input.name || 'Receipt image'),
+    type: input.type,
+    size: Number(input.size || 0),
+    dataUrl: input.dataUrl,
+    uploadedBy: actor?.username || 'unknown',
+    uploadedAt: new Date().toISOString(),
+  });
+  PURCHASES[idx].receipts = receipts;
   PURCHASES[idx].updatedBy = actor?.username || 'unknown';
   PURCHASES[idx].updatedByRole = actor?.role || ROLES.OWNER;
   PURCHASES[idx].updatedAt = new Date().toISOString();
@@ -565,7 +590,7 @@ export function computePurchaseTotals(p) {
     (s, pay) => s + Number(pay.amount || 0),
     0,
   );
-  const dueTotal = Math.max(total - paidTotal, 0);
+  const dueTotal = p.status === 'CANCELLED' ? 0 : Math.max(total - paidTotal, 0);
   return { total, paidTotal, dueTotal };
 }
 

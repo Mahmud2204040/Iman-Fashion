@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 import { useEffect, useId, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
@@ -5,6 +6,8 @@ import Button from '../../components/common/Button/Button.jsx';
 import FormField from '../../components/common/FormField/FormField.jsx';
 import Input from '../../components/common/Input/Input.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { ROLES } from '../../constants/roles.js';
 import loginPhoto from '../../assets/login_page photo.png';
 import logoImage from '../../assets/Logo.png';
 import styles from './LoginPage.module.css';
@@ -12,17 +15,24 @@ import styles from './LoginPage.module.css';
 /**
  * LoginPage — Phase 3.
  *
- * Mock login form. Two valid credential pairs:
- *   owner    / 1234   → OWNER
- *   employee / 1234   → EMPLOYEE
- *
+ * Server-backed login form.
  * - Disables submit while authenticating.
  * - Surfaces inline errors. Never reveals which of username/password was wrong.
  * - On success, redirects to the route the user originally tried to reach,
- *   or /dashboard by default.
+ *   or the role's landing page by default.
  */
+const OWNER_ONLY_PATHS = /^\/(dashboard|products|suppliers|purchases|raw-materials|expenses|cash|reports)(\/|$)/;
+
+function destinationFor(role, from) {
+  const landing = role === ROLES.EMPLOYEE ? '/sales/new' : '/dashboard';
+  if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) return landing;
+  if (role === ROLES.EMPLOYEE && OWNER_ONLY_PATHS.test(from)) return landing;
+  return from;
+}
+
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { login, role, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { language, changeLanguage, t } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -40,20 +50,18 @@ export default function LoginPage() {
   // Field-level errors for empty-field validation.
   const [fieldErrors, setFieldErrors] = useState({ username: '', password: '' });
 
-  // If the user is already authenticated, bounce them straight to the dashboard
-  // (or back to wherever they came from). Per Phase 3 §15.
+  // Preserve a permitted deep link, otherwise use the role's landing page.
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      const target =
-        (location.state && location.state.from) || '/dashboard';
+      const target = destinationFor(role, location.state?.from);
       navigate(target, { replace: true });
     }
-  }, [authLoading, isAuthenticated, location.state, navigate]);
+  }, [authLoading, isAuthenticated, role, location.state, navigate]);
 
   function validate() {
     const next = { username: '', password: '' };
-    if (!username.trim()) next.username = 'Username is required.';
-    if (!password) next.password = 'Password is required.';
+    if (!username.trim()) next.username = t('Username is required.');
+    if (!password) next.password = t('Password is required.');
     setFieldErrors(next);
     return !next.username && !next.password;
   }
@@ -67,29 +75,16 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      await login({ username, password, rememberMe });
-      const target = (location.state && location.state.from) || '/dashboard';
+      const signedIn = await login({ username, password, rememberMe });
+      const target = destinationFor(signedIn.role, location.state?.from);
       navigate(target, { replace: true });
     } catch (err) {
-      // Generic message per Phase 3 §8. The service's error codes
-      // (EMPTY_USERNAME / EMPTY_PASSWORD / INVALID_CREDENTIALS) never
-      // surface to the user, so we don't accidentally reveal which
-      // field was wrong.
-      setError(
-        err && err.message
-          ? 'Invalid username or password.'
-          : 'Unable to sign in. Please try again.',
-      );
+      setError(err?.code === 'INVALID_CREDENTIALS'
+        ? t('Invalid username or password.')
+        : (err?.message || t('Unable to sign in. Please try again.')));
     } finally {
       setSubmitting(false);
     }
-  }
-
-  function applyQuickLogin(name) {
-    setUsername(name);
-    setPassword('1234');
-    setError('');
-    setFieldErrors({ username: '', password: '' });
   }
 
   // While AuthProvider is restoring the session, render nothing to avoid
@@ -99,7 +94,7 @@ export default function LoginPage() {
 
   // Belt-and-braces: if already authenticated, don't render the form.
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={destinationFor(role, location.state?.from)} replace />;
   }
 
   return (
@@ -115,16 +110,16 @@ export default function LoginPage() {
           />
           <div className={styles.introOverlay} />
           <div className={styles.introContent}>
-            <div className={styles.brandTitle}>NI FASHION</div>
+            <div className={styles.brandTitle}><T>NI FASHION</T></div>
             <a className={styles.brandSubtitle} href="#shop-management">
-              Shop Management
+              {t('Shop Management')}
             </a>
             <hr className={styles.brandRule} />
-            <p className={styles.brandTagline}>
+            <p className={styles.brandTagline}><T>
               Manage your sales, inventory, customers,
-              <br />
+              </T><br /><T>
               and more — all in one place.
-            </p>
+            </T></p>
             <ul className={styles.featureList}>
               <li className={styles.featureItem}>
                 <svg
@@ -140,7 +135,7 @@ export default function LoginPage() {
                   <rect x="4" y="11" width="16" height="10" rx="2" />
                   <path d="M8 11V8a4 4 0 0 1 8 0v3" />
                 </svg>
-                <span>Smart Sales</span>
+                <span>{t('Smart Sales')}</span>
               </li>
               <li className={styles.featureItem}>
                 <svg
@@ -157,7 +152,7 @@ export default function LoginPage() {
                   <path d="M3.27 8 12 13l8.73-5" />
                   <path d="M12 22V13" />
                 </svg>
-                <span>Inventory Control</span>
+                <span>{t('Inventory Control')}</span>
               </li>
               <li className={styles.featureItem}>
                 <svg
@@ -175,7 +170,7 @@ export default function LoginPage() {
                   <path d="M9 9V5h6v4" />
                   <path d="M9 13l3 3 3-3" />
                 </svg>
-                <span>Business Growth</span>
+                <span>{t('Business Growth')}</span>
               </li>
             </ul>
           </div>
@@ -183,6 +178,9 @@ export default function LoginPage() {
 
         {/* ---- Right pane: form ---- */}
         <div className={styles.formPane}>
+          <select className={styles.languageSelect} aria-label="Language / ভাষা" value={language} onChange={(event) => changeLanguage(event.target.value)}>
+            <option value="en"><T>English</T></option><option value="bn">বাংলা</option>
+          </select>
           <div className={styles.brandHeader}>
             <img
               src={logoImage}
@@ -191,13 +189,13 @@ export default function LoginPage() {
               className={styles.brandLogo}
               draggable="false"
             />
-            <span className={styles.brandHeaderLabel}>NI FASHION</span>
+            <span className={styles.brandHeaderLabel}><T>NI FASHION</T></span>
           </div>
 
           <h1 id="login-title" className={styles.title}>
-            Welcome back
+            {t('Welcome back')}
           </h1>
-          <p className={styles.subtitle}>Sign in to continue to your dashboard</p>
+          <p className={styles.subtitle}>{t('Sign in to continue to NI Fashion')}</p>
 
           <div className={styles.banner} role="note">
             <svg
@@ -215,12 +213,10 @@ export default function LoginPage() {
             </svg>
             <div className={styles.bannerBody}>
               <strong className={styles.bannerTitle}>
-                Development mock authentication
+                {t('Secure account sign-in')}
               </strong>
               <p className={styles.bannerText}>
-                Real authentication is not connected yet.
-                <br />
-                This will be replaced once the backend is ready.
+                {t('Use the account credentials set by the Owner.')}
               </p>
             </div>
           </div>
@@ -233,7 +229,7 @@ export default function LoginPage() {
 
           <form className={styles.form} onSubmit={handleSubmit} noValidate>
             <FormField
-              label="Username"
+              label={t('Username')}
               htmlFor={usernameId}
               required
               error={fieldErrors.username}
@@ -272,7 +268,7 @@ export default function LoginPage() {
             </FormField>
 
             <FormField
-              label="Password"
+              label={t('Password')}
               htmlFor={passwordId}
               required
               error={fieldErrors.password}
@@ -301,7 +297,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     invalid={Boolean(fieldErrors.password)}
                     disabled={submitting}
-                    placeholder="1234"
+                    placeholder={t('Enter your password')}
                     className={styles.inputField}
                     {...controlProps}
                   />
@@ -309,7 +305,7 @@ export default function LoginPage() {
                     type="button"
                     className={styles.inputToggle}
                     onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-label={t(showPassword ? 'Hide password' : 'Show password')}
                     aria-pressed={showPassword}
                     disabled={submitting}
                     tabIndex={0}
@@ -357,15 +353,8 @@ export default function LoginPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   disabled={submitting}
                 />
-                <span>Remember me</span>
+                <span>{t('Remember me')}</span>
               </label>
-              <a
-                className={styles.forgotLink}
-                href="#forgot-password"
-                onClick={(e) => e.preventDefault()}
-              >
-                Forgot password?
-              </a>
             </div>
 
             <Button
@@ -374,7 +363,7 @@ export default function LoginPage() {
               size="lg"
               fullWidth
               loading={submitting}
-              loadingText="Signing in"
+              loadingText={t('Signing in')}
               disabled={submitting}
               className={styles.submitButton}
               leftIcon={
@@ -393,67 +382,13 @@ export default function LoginPage() {
                 </svg>
               }
             >
-              Sign in
+              {t('Sign in')}
             </Button>
           </form>
 
-          <div className={styles.divider}>
-            <span className={styles.dividerLine} />
-            <span className={styles.dividerText}>OR</span>
-            <span className={styles.dividerLine} />
-          </div>
-
-          <div className={styles.quickLogin}>
-            <div className={styles.quickLoginLabel}>Quick login</div>
-            <div className={styles.quickLoginRow}>
-              <button
-                type="button"
-                className={styles.quickLoginPill}
-                onClick={() => applyQuickLogin('owner')}
-                disabled={submitting}
-              >
-                <svg
-                  className={styles.quickLoginIcon}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 21a8 8 0 0 1 16 0" />
-                </svg>
-                <span>owner / 1234</span>
-              </button>
-              <button
-                type="button"
-                className={styles.quickLoginPill}
-                onClick={() => applyQuickLogin('employee')}
-                disabled={submitting}
-              >
-                <svg
-                  className={styles.quickLoginIcon}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M4 21a8 8 0 0 1 16 0" />
-                </svg>
-                <span>employee / 1234</span>
-              </button>
-            </div>
-          </div>
-
-          <footer className={styles.footer}>
+          <footer className={styles.footer}><T>
             © 2026 NI Fashion. All rights reserved.
-          </footer>
+          </T></footer>
         </div>
       </section>
     </main>

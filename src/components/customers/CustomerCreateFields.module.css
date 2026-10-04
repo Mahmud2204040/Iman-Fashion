@@ -1,0 +1,54 @@
+.fields { display: grid; gap: var(--space-5); }
+.section { display: grid; gap: var(--space-3); min-width: 0; }
+.heading { margin: 0; font-size: var(--font-size-lg); color: var(--color-text); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.child { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); display: grid; gap: var(--space-3); }
+.childHeader { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.remove { color: var(--color-danger, #b42318); text-decoration: underline; }
+.label { display: grid; gap: var(--space-1); font-size: var(--font-size-sm); color: var(--color-text); }
+.input { width: 100%; min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--color-surface-raised); color: var(--color-text); font: inherit; }
+.input:focus { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+
+/* New-customer Figma frame 18:298. The default quick-create fields remain unchanged. */
+.figmaFields { display: flex; flex-direction: column; min-width: 0; }
+.figmaSection { display: flex; flex-direction: column; gap: 15px; min-width: 0; padding: 24px; }
+.figmaSection + .figmaSection { border-top: 1px solid #e4e0d6; gap: 12px; }
+.figmaSectionHead, .figmaChildrenHead { display: flex; align-items: center; gap: 8px; min-height: 20px; }
+.figmaSectionHead { justify-content: space-between; }
+.figmaSectionHead h2, .figmaChildrenHead h2 { margin: 0; color: #171817; font-size: 16px; line-height: 20px; font-weight: 600; }
+.figmaSectionHead > span, .figmaChildrenHead > span { color: #74786f; font-size: 12px; }
+.figmaChildrenHead strong { padding: 3px 8px; border-radius: 6px; background: #f6f3ec; color: #171817; font-size: 11px; font-weight: 600; }
+.figmaGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; min-width: 0; }
+.figmaSection :global(label) { display: flex; align-items: baseline; gap: 4px; color: #171817; font-size: 13px; font-weight: 500; }
+.figmaSection :global(label > span:not(.figmaOptional)) { color: #9cc846; margin: 0; }
+.figmaOptional { color: #74786f; font-size: 12px; font-weight: 400; }
+.figmaSection :global(input), .figmaSection :global(textarea) { width: 100%; min-width: 0; border: 1px solid #e4e0d6; border-radius: 12px; background: #fff; color: #171817; font: inherit; font-size: 14px; }
+.figmaSection :global(input) { height: 42px; padding: 0 12px; }
+.figmaSection :global(textarea) { height: 76px; min-height: 76px; padding: 12px; resize: vertical; }
+.figmaSection :global(input::placeholder), .figmaSection :global(textarea::placeholder) { color: #a3a79e; }
+.figmaSection :global(input:focus-visible), .figmaSection :global(textarea:focus-visible) { outline: none; border-color: #9cc846; box-shadow: 0 0 0 3px rgba(199,243,107,.25); }
+.figmaChild { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.figmaChild + .figmaChild { padding-top: 16px; border-top: 1px solid #e4e0d6; }
+.figmaChildHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.figmaChildHead strong { color: #171817; font-size: 13px; font-weight: 600; }
+.figmaChildHead button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 2px; border: 0; background: transparent; color: #c44d4d; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.figmaChildHead button:hover { color: #a83f3f; }
+.figmaLabel { display: flex; flex-direction: column; align-items: stretch !important; gap: 8px !important; min-width: 0; }
+.figmaLabelText { color: #171817 !important; }
+.figmaLabelText em { color: #9cc846; font-style: normal; }
+.figmaDate { position: relative; display: flex; align-items: center; height: 42px; padding: 0 12px; border: 1px solid #e4e0d6; border-radius: 12px; background: #fff; }
+.figmaDate:focus-within { border-color: #9cc846; box-shadow: 0 0 0 3px rgba(199,243,107,.25); }
+.figmaDateText { color: #171817; font-size: 14px; font-weight: 400; }
+.figmaDate .figmaDateNative { position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.figmaDate input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.figmaDate img { position: absolute; right: 12px; top: 13px; pointer-events: none; }
+.figmaAddChild { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0; border: 0; background: transparent; color: #171817; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.figmaAddChild:hover { text-decoration: underline; text-underline-offset: 3px; }
+.figmaAddChild:focus-visible, .figmaChildHead button:focus-visible { outline: 3px solid rgba(199,243,107,.7); outline-offset: 2px; border-radius: 6px; }
+
+@media (max-width: 640px) {
+  .figmaSection { padding: 20px 16px; }
+  .figmaGrid { grid-template-columns: 1fr; }
+  .figmaSectionHead { flex-wrap: wrap; }
+}

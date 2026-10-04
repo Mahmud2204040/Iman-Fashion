@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * PurchaseDetailPage — Phase 9.
  *
@@ -5,20 +6,18 @@
  *   - Header: code + supplier + status badge
  *   - Summary: total / paid / due, dates (ordered, expected, received)
  *   - Line items table
- *   - Payments ledger (paired CASH_OUT id shown)
+ *   - Purchase-specific CASH payments; never an automatic shop CASH_OUT
  *   - Notes section (editable for DRAFT/ORDERED; locked for terminal)
- *   - Status transition actions (DRAFT → ORDERED → RECEIVED, any → CANCELLED)
- *   - Receipt upload (mock: stores a data URL on the record)
+ *   - Status transitions: DRAFT → ORDERED → RECEIVED; unpaid DRAFT/ORDERED may cancel
+ *   - Receipt gallery (mock data URLs with purchase/payment metadata)
  *   - Back-link to /purchases list
  *
- * Per PROJECT_RULES:
- *   - Supplier payments NEVER auto-create shop-cash CASH_OUT.
- *     We surface the paired row id only for the record.
+ * Per PROJECT_RULES, supplier payments never auto-create shop-cash CASH_OUT.
  *   - Only OWNER can perform mutations; mutations reject during
  *     smoke/internal guards even if a non-owner reaches the UI.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import {
   Badge,
@@ -35,6 +34,8 @@ import {
 } from '../../components/common/index.js';
 import { PurchaseIcon } from '../../components/icons/DashboardIcon.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { cashBusinessDate } from '../../utils/cashDate.js';
 import {
   attachPurchaseReceipt,
   computePurchaseTotals,
@@ -53,8 +54,6 @@ const STATUS_TONE = {
   CANCELLED: 'danger',
 };
 
-const PAYMENT_METHODS = ['CASH', 'BKASH', 'BANK', 'CHEQUE'];
-
 function paymentsTotal(payments) {
   return (payments || []).reduce((s, p) => s + Number(p.amount || 0), 0);
 }
@@ -62,6 +61,7 @@ function paymentsTotal(payments) {
 export default function PurchaseDetailPage() {
   const { id } = useParams();
   const { user, role } = useAuth();
+  const { language, t } = useLocale();
   const isOwner = role === 'OWNER';
 
   const [purchase, setPurchase] = useState(null);
@@ -78,7 +78,6 @@ export default function PurchaseDetailPage() {
 
   // Payment form
   const [payAmount, setPayAmount] = useState('');
-  const [payMethod, setPayMethod] = useState('CASH');
   const [payNote, setPayNote] = useState('');
   const [payBusy, setPayBusy] = useState(false);
   const [payMsg, setPayMsg] = useState('');
@@ -88,6 +87,7 @@ export default function PurchaseDetailPage() {
   const fileInputRef = useRef(null);
   const [receiptBusy, setReceiptBusy] = useState(false);
   const [receiptMsg, setReceiptMsg] = useState('');
+  const [receiptPaymentId, setReceiptPaymentId] = useState('');
 
   // Payment search
   const [paymentQuery, setPaymentQuery] = useState('');
@@ -127,7 +127,7 @@ export default function PurchaseDetailPage() {
       (row) =>
         (row.method || '').toLowerCase().includes(q) ||
         (row.note || '').toLowerCase().includes(q) ||
-        (row.cashOutId || '').toLowerCase().includes(q),
+        (row.id || '').toLowerCase().includes(q),
     );
   }, [purchase, paymentQuery]);
 
@@ -137,22 +137,28 @@ export default function PurchaseDetailPage() {
     return Math.max(Number(purchase.total || 0) - paid, 0);
   }, [purchase]);
 
+  const dateLocale = language === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB';
+  const dateOnly = (value) => value ? new Intl.DateTimeFormat(dateLocale, {
+    day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Dhaka',
+  }).format(new Date(value)) : '—';
+  const purchaseDay = purchase?.orderedAt ? cashBusinessDate(purchase.orderedAt) : '';
+
   if (loading) {
     return (
       <main className={styles.page} aria-busy="true">
         <div className={styles.loading}>
-          <Spinner /> <span>Loading purchase…</span>
+          <Spinner /> <span><T>Loading purchase…</T></span>
         </div>
       </main>
     );
   }
 
   if (error === 'not-found' || !purchase) {
-    return <Navigate to="/purchases" replace />;
+    return <main className={styles.page}><p role="alert">{error === 'not-found' ? 'Purchase not found.' : error || 'Purchase unavailable.'}</p><Link to="/purchases"><T>← All purchases</T></Link><Button onClick={reload}><T>Retry</T></Button></main>;
   }
 
   const isTerminal = purchase.status === 'RECEIVED' || purchase.status === 'CANCELLED';
-  const canRecordPayment = isOwner && !isTerminal && remaining > 0;
+  const canRecordPayment = isOwner && (purchase.status === 'ORDERED' || purchase.status === 'RECEIVED') && remaining > 0;
   const canEditNotes = isOwner && !isTerminal;
   const canChangeStatus = isOwner && !isTerminal;
   const canAttachReceipt = isOwner;
@@ -201,7 +207,7 @@ export default function PurchaseDetailPage() {
         purchase.id,
         {
           amount: Number(payAmount),
-          method: payMethod,
+          method: 'CASH',
           note: payNote,
         },
         { actor: { username: user?.username || 'unknown', role } },
@@ -209,11 +215,7 @@ export default function PurchaseDetailPage() {
       setPurchase(result.purchase);
       setPayAmount('');
       setPayNote('');
-      setPayMsg(
-        result.pairedCashOut
-          ? `Recorded · paired CASH_OUT ${result.pairedCashOut.id}`
-          : 'Recorded.',
-      );
+      setPayMsg('Payment recorded. Shop cash was not changed; record a separate manual Cash Out if cash left the shop.');
     } catch (err_) {
       setPayErr(err_?.message || 'Could not record payment.');
     } finally {
@@ -221,27 +223,31 @@ export default function PurchaseDetailPage() {
     }
   }
 
-  async function handleReceiptFile(file) {
-    if (!file) return;
+  async function handleReceiptFiles(files) {
+    if (!files.length) return;
     setReceiptBusy(true);
     setReceiptMsg('');
     try {
-      // Mock upload — read as data URL so preview-only state is persisted.
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(reader.error || new Error('Read failed'));
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.readAsDataURL(file);
-      });
-      const updated = await attachPurchaseReceipt(
-        purchase.id,
-        dataUrl,
-        { actor: { username: user?.username || 'unknown', role } },
-      );
-      if (updated) {
-        setPurchase(updated);
-        setReceiptMsg(`Attached ${file.name}`);
+      let updated = purchase;
+      for (const file of files) {
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+          throw new Error('Use JPG, PNG or WebP images of 5 MB or less.');
+        }
+        const dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onerror = () => reject(reader.error || new Error('Read failed'));
+          reader.onload = () => resolve(String(reader.result || ''));
+          reader.readAsDataURL(file);
+        });
+        updated = await attachPurchaseReceipt(purchase.id, {
+          dataUrl, name: file.name, type: file.type, size: file.size,
+          paymentId: receiptPaymentId || null,
+        }, { actor: { username: user?.username || 'unknown', role } });
       }
+      setPurchase(updated);
+      setReceiptMsg(language === 'bn'
+        ? `${files.length}টি রসিদের ছবি যুক্ত হয়েছে।`
+        : `${files.length} receipt image${files.length === 1 ? '' : 's'} attached.`);
     } catch (err_) {
       setReceiptMsg(err_?.message || 'Could not attach receipt.');
     } finally {
@@ -251,22 +257,21 @@ export default function PurchaseDetailPage() {
   }
 
   function onReceiptChange(e) {
-    const file = e.target.files?.[0];
-    handleReceiptFile(file);
+    handleReceiptFiles(Array.from(e.target.files || []));
   }
 
   /* ------------------------------ UI ----------------------------------- */
 
   return (
     <main className={styles.page}>
-      <Link to="/purchases" className={styles.backLink}>
+      <Link to="/purchases" className={styles.backLink}><T>
         ← All purchases
-      </Link>
+      </T></Link>
 
       <PageHeader
         eyebrow="Procurement"
         title={purchase.code}
-        description={`${purchase.supplierName} · ordered ${timeAgo(purchase.orderedAt)}`}
+        description={`${purchase.supplierName} · ${t('Purchase date')} ${dateOnly(purchase.orderedAt)}`}
         actions={
           <div className={styles.headerActions}>
             <Badge tone={STATUS_TONE[purchase.status] || 'neutral'}>
@@ -279,24 +284,22 @@ export default function PurchaseDetailPage() {
       {/* --- Summary --------------------------------------------- */}
       <Card className={styles.totalsCard}>
         <div className={styles.totalBlock}>
-          <span className={styles.totalLabel}>Total</span>
+          <span className={styles.totalLabel}><T>Total</T></span>
           <span className={styles.totalValue}>
             {formatCurrency(totals?.total || 0)}
           </span>
           <span className={styles.totalSub}>
-            {purchase.items.length} item
-            {purchase.items.length === 1 ? '' : 's'}
+            {purchase.items.length} {language === 'bn' ? 'আইটেম' : purchase.items.length === 1 ? 'item' : 'items'}
           </span>
         </div>
         <span className={styles.divider} aria-hidden="true" />
         <div className={styles.totalBlock}>
-          <span className={styles.totalLabel}>Paid</span>
+          <span className={styles.totalLabel}><T>Paid</T></span>
           <span className={`${styles.totalValue} ${styles.totalPaid}`}>
             {formatCurrency(totals?.paidTotal || 0)}
           </span>
           <span className={styles.totalSub}>
-            {purchase.payments.length} payment
-            {purchase.payments.length === 1 ? '' : 's'}
+            {purchase.payments.length} {language === 'bn' ? 'পেমেন্ট' : purchase.payments.length === 1 ? 'payment' : 'payments'}
           </span>
         </div>
         <span className={styles.divider} aria-hidden="true" />
@@ -307,7 +310,7 @@ export default function PurchaseDetailPage() {
               : styles.totalBlock
           }
         >
-          <span className={styles.totalLabel}>Outstanding</span>
+          <span className={styles.totalLabel}><T>Outstanding</T></span>
           <span
             className={
               (totals?.dueTotal || 0) > 0
@@ -318,9 +321,9 @@ export default function PurchaseDetailPage() {
             {formatCurrency(totals?.dueTotal || 0)}
           </span>
           {(totals?.dueTotal || 0) > 0 ? (
-            <span className={styles.dueChip}>Action needed</span>
+            <span className={styles.dueChip}><T>Action needed</T></span>
           ) : (
-            <span className={styles.totalSub}>Cleared</span>
+            <span className={styles.totalSub}><T>Cleared</T></span>
           )}
         </div>
       </Card>
@@ -328,36 +331,36 @@ export default function PurchaseDetailPage() {
       {/* --- Dates ----------------------------------------------- */}
       <Card className={styles.datesCard}>
         <div className={styles.dateBlock}>
-          <span className={styles.dateLabel}>Ordered</span>
+          <span className={styles.dateLabel}>{t('Purchase date')}</span>
           <span className={styles.dateValue}>
-            {timeAgo(purchase.orderedAt)}
+            {dateOnly(purchase.orderedAt)}
           </span>
           <span className={styles.dateSub}>
-            {new Date(purchase.orderedAt).toLocaleString()}
+            {purchaseDay}
           </span>
         </div>
         <span className={styles.divider} aria-hidden="true" />
         <div className={styles.dateBlock}>
-          <span className={styles.dateLabel}>Expected</span>
+          <span className={styles.dateLabel}><T>Expected</T></span>
           <span className={styles.dateValue}>
             {purchase.expectedAt
-              ? new Date(purchase.expectedAt).toLocaleDateString()
+              ? dateOnly(purchase.expectedAt)
               : '—'}
           </span>
           <span className={styles.dateSub}>
-            {purchase.expectedAt ? 'target arrival' : 'no ETA set'}
+            {t(purchase.expectedAt ? 'target arrival' : 'no ETA set')}
           </span>
         </div>
         <span className={styles.divider} aria-hidden="true" />
         <div className={styles.dateBlock}>
-          <span className={styles.dateLabel}>Received</span>
+          <span className={styles.dateLabel}><T>Received</T></span>
           <span className={styles.dateValue}>
             {purchase.receivedAt
-              ? new Date(purchase.receivedAt).toLocaleDateString()
+              ? dateOnly(purchase.receivedAt)
               : '—'}
           </span>
           <span className={styles.dateSub}>
-            {purchase.receivedAt ? 'stocked' : 'pending'}
+            {t(purchase.receivedAt ? 'finished stock unchanged' : 'pending')}
           </span>
         </div>
       </Card>
@@ -365,22 +368,21 @@ export default function PurchaseDetailPage() {
       {/* --- Line items ------------------------------------------ */}
       <Card className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Line items</h2>
+          <h2 className={styles.sectionTitle}><T>Line items</T></h2>
           <span className={styles.sectionMeta}>
-            {purchase.items.length} line
-            {purchase.items.length === 1 ? '' : 's'}
+            {purchase.items.length} {language === 'bn' ? 'লাইন' : purchase.items.length === 1 ? 'line' : 'lines'}
           </span>
         </div>
         {purchase.items.length === 0 ? (
-          <p className={styles.emptyText}>No line items on this purchase.</p>
+          <p className={styles.emptyText}><T>No line items on this purchase.</T></p>
         ) : (
           <ul className={styles.itemsList}>
             {purchase.items.map((it) => (
               <li key={it.id} className={styles.itemRow}>
                 <div className={styles.itemMain}>
                   <span className={styles.itemName}>{it.name}</span>
-                  <span className={styles.itemMeta}>
-                    qty {it.qty} × {formatCurrency(it.unitPrice)}
+                  <span className={styles.itemMeta}><T>
+                    qty </T>{it.qty} × {formatCurrency(it.unitPrice)}
                   </span>
                 </div>
                 <div className={styles.itemRight}>
@@ -397,10 +399,8 @@ export default function PurchaseDetailPage() {
       {/* --- Payments -------------------------------------------- */}
       <Card className={styles.sectionCard}>
         <div className={styles.sectionHead}>
-          <h2 className={styles.sectionTitle}>Payments</h2>
-          <span className={styles.sectionMeta}>
-            paired CASH_OUT track only · never moves shop cash
-          </span>
+          <h2 className={styles.sectionTitle}><T>Payments</T></h2>
+          <span className={styles.sectionMeta}><T>Purchase-specific cash payments. Shop cash changes only via a separate manual Cash Out.</T></span>
         </div>
 
         {canRecordPayment ? (
@@ -422,19 +422,7 @@ export default function PurchaseDetailPage() {
                 />
               )}
             </FormField>
-            <FormField label="Method" htmlFor="pay-method">
-              <Select
-                id="pay-method"
-                value={payMethod}
-                onChange={(e) => setPayMethod(e.target.value)}
-              >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
+            <p className={styles.sectionMeta}><T>Method: Cash only</T></p>
             <FormField label="Note" htmlFor="pay-note">
               {(controlProps) => (
                 <Input
@@ -453,18 +441,18 @@ export default function PurchaseDetailPage() {
                 disabled={payBusy || !payAmount}
                 loading={payBusy}
                 loadingText="Recording…"
-              >
+              ><T>
                 Record payment
-              </Button>
+              </T></Button>
             </div>
             {payErr ? (
               <p className={styles.payErr} role="alert">
-                {payErr}
+                {t(payErr)}
               </p>
             ) : null}
             {payMsg ? (
               <p className={styles.payMsg} role="status">
-                {payMsg}
+                {t(payMsg)}
               </p>
             ) : null}
           </form>
@@ -473,16 +461,16 @@ export default function PurchaseDetailPage() {
         <FormField label="Search payments" hideLabel>
           <SearchInput
             value={paymentQuery}
-            onChange={setPaymentQuery}
-            placeholder="Search by method, note, or cash-out id…"
+            onChange={(event) => setPaymentQuery(event.target.value)}
+            placeholder="Search by payment ID or note…"
           />
         </FormField>
 
         {visiblePayments.length === 0 ? (
           <p className={styles.emptyText}>
             {(purchase.payments || []).length === 0
-              ? 'No payments recorded yet.'
-              : 'No payments match the filter.'}
+              ? <T>No payments recorded yet.</T>
+              : <T>No payments match the filter.</T>}
           </p>
         ) : (
           <ol className={styles.paymentList}>
@@ -490,16 +478,11 @@ export default function PurchaseDetailPage() {
               <li key={row.id} className={styles.paymentRow}>
                 <div className={styles.paymentLeft}>
                   <span className={styles.paymentMethod}>
-                    {row.method || 'CASH'}
+                    {t(row.method || 'CASH')}
                   </span>
                   <span className={styles.paymentMeta}>
-                    {timeAgo(row.createdAt)} · by {row.createdBy || 'unknown'}
-                    {row.cashOutId ? (
-                      <>
-                        {' · paired '}
-                        <code className={styles.codeChip}>{row.cashOutId}</code>
-                      </>
-                    ) : null}
+                    {timeAgo(row.createdAt)}<T> · by </T>{row.createdBy || 'unknown'}
+                    {' · '}{row.id}
                   </span>
                   {row.note ? (
                     <span className={styles.paymentNote}>{row.note}</span>
@@ -520,11 +503,11 @@ export default function PurchaseDetailPage() {
       {isOwner ? (
         <Card className={styles.sectionCard}>
           <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>Internal notes</h2>
+            <h2 className={styles.sectionTitle}><T>Internal notes</T></h2>
             <span className={styles.sectionMeta}>
               {canEditNotes
-                ? 'Visible to all owners.'
-                : 'Locked — purchase is received or cancelled.'}
+                ? t('Visible to all owners.')
+                : <T>Locked — purchase is received or cancelled.</T>}
             </span>
           </div>
           <Textarea
@@ -544,7 +527,7 @@ export default function PurchaseDetailPage() {
                 }
                 role="status"
               >
-                {notesMsg}
+                {t(notesMsg)}
               </span>
             ) : null}
             <Button
@@ -562,34 +545,29 @@ export default function PurchaseDetailPage() {
       {canChangeStatus ? (
         <Card className={styles.actionsCard}>
           <div className={styles.actionsHeader}>
-            <h2 className={styles.sectionTitle}>Change status</h2>
-            <span className={styles.sectionMeta}>
+            <h2 className={styles.sectionTitle}><T>Change status</T></h2>
+            <span className={styles.sectionMeta}><T>
               DRAFT → ORDERED → RECEIVED; or cancel.
-            </span>
+            </T></span>
           </div>
           <div className={styles.actionRow}>
             {purchase.status === 'DRAFT' ? (
               <Button
                 variant="primary"
                 onClick={() => setPendingStatus('ORDERED')}
-              >
+              ><T>
                 Mark ordered
-              </Button>
+              </T></Button>
             ) : null}
             {purchase.status === 'ORDERED' ? (
               <Button
                 variant="primary"
                 onClick={() => setPendingStatus('RECEIVED')}
-              >
+              ><T>
                 Mark received
-              </Button>
+              </T></Button>
             ) : null}
-            <Button
-              variant="ghost"
-              onClick={() => setPendingStatus('CANCELLED')}
-            >
-              Cancel purchase
-            </Button>
+            {purchase.payments.length === 0 ? <Button variant="ghost" onClick={() => setPendingStatus('CANCELLED')}><T>Cancel purchase</T></Button> : null}
           </div>
         </Card>
       ) : null}
@@ -597,47 +575,38 @@ export default function PurchaseDetailPage() {
       {canAttachReceipt ? (
         <Card className={styles.sectionCard}>
           <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>Receipt</h2>
+            <h2 className={styles.sectionTitle}><T>Receipt proofs</T></h2>
             <span className={styles.sectionMeta}>
-              {purchase.receiptUrl
-                ? 'Attached · click replace to update.'
-                : 'No receipt attached yet.'}
-            </span>
+              {(purchase.receipts || []).length}<T> images · JPG, PNG or WebP · 5 MB each
+            </T></span>
           </div>
-          {purchase.receiptUrl ? (
-            <div className={styles.receiptPreview}>
-              <img
-                src={purchase.receiptUrl}
-                alt={`Receipt for ${purchase.code}`}
-                className={styles.receiptImage}
-              />
-            </div>
-          ) : null}
+          {(purchase.receipts || []).length ? <div className={styles.receiptPreview}>
+            {purchase.receipts.map((receipt) => <figure key={receipt.id}>
+              <a href={receipt.dataUrl} target="_blank" rel="noreferrer"><img src={receipt.dataUrl} alt={`${receipt.name} for ${purchase.code}`} className={styles.receiptImage} /></a>
+              <figcaption>{receipt.name} · {receipt.paymentId || t('Purchase proof')} · {receipt.uploadedBy} · {new Intl.DateTimeFormat(dateLocale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(new Date(receipt.uploadedAt))}</figcaption>
+            </figure>)}
+          </div> : null}
           <div className={styles.receiptActions}>
+            <Select aria-label={t('Link proof to a payment')} fullWidth={false} value={receiptPaymentId} onChange={(event) => setReceiptPaymentId(event.target.value)} options={[{ value: '', label: 'Purchase proof' }, ...purchase.payments.map((payment) => ({ value: payment.id, label: `${t('Payment')} ${payment.id}` }))]} />
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
               onChange={onReceiptChange}
               className={styles.fileInput}
-              aria-label="Attach receipt"
+              aria-label={t('Attach receipt')}
             />
             <Button
               variant="secondary"
               onClick={() => fileInputRef.current?.click()}
               disabled={receiptBusy}
             >
-              {purchase.receiptUrl
-                ? receiptBusy
-                  ? 'Replacing…'
-                  : 'Replace receipt'
-                : receiptBusy
-                ? 'Attaching…'
-                : 'Attach receipt'}
+              {receiptBusy ? 'Attaching…' : 'Add receipt images'}
             </Button>
             {receiptMsg ? (
               <span className={styles.receiptMsg} role="status">
-                {receiptMsg}
+                {t(receiptMsg)}
               </span>
             ) : null}
           </div>
@@ -647,7 +616,7 @@ export default function PurchaseDetailPage() {
       <ConfirmDialog
         open={pendingStatus === 'RECEIVED'}
         title="Mark purchase received?"
-        message={`Marking ${purchase.code} received locks the purchase. Notes and items cannot be edited after this.`}
+        message={`${t('Marking purchase')} ${purchase.code} ${t('received locks the purchase. Notes and items cannot be edited after this.')}`}
         confirmText="Mark received"
         tone="primary"
         onClose={() => setPendingStatus(null)}
@@ -656,7 +625,7 @@ export default function PurchaseDetailPage() {
       <ConfirmDialog
         open={pendingStatus === 'ORDERED'}
         title="Mark purchase ordered?"
-        message={`Marking ${purchase.code} ordered records the order with the supplier.`}
+        message={`${t('Marking purchase')} ${purchase.code} ${t('ordered records the order with the supplier.')}`}
         confirmText="Mark ordered"
         tone="primary"
         onClose={() => setPendingStatus(null)}
@@ -665,7 +634,7 @@ export default function PurchaseDetailPage() {
       <ConfirmDialog
         open={pendingStatus === 'CANCELLED'}
         title="Cancel purchase?"
-        message={`Cancelling ${purchase.code} does NOT auto-reverse payments. Manage any outstanding balance manually.`}
+        message={`${t('Cancel')} ${purchase.code}? ${t('The original amount remains in history but will not count as supplier outstanding.')}`}
         confirmText="Cancel purchase"
         tone="danger"
         onClose={() => setPendingStatus(null)}
@@ -673,15 +642,15 @@ export default function PurchaseDetailPage() {
       />
 
       {!isOwner ? (
-        <p className={styles.viewerNote} role="note">
-          You are viewing this purchase as{' '}
-          <strong>{role || 'guest'}</strong>. Mutations are owner-only.
-        </p>
+        <p className={styles.viewerNote} role="note"><T>
+          You are viewing this purchase as</T>{' '}
+          <strong>{role || 'guest'}</strong><T>. Mutations are owner-only.
+        </T></p>
       ) : null}
 
-      <p className={styles.audit}>
-        Created {timeAgo(purchase.createdAt)} by {purchase.createdBy || 'unknown'}{' '}
-        · Updated {timeAgo(purchase.updatedAt)} by{' '}
+      <p className={styles.audit}><T>
+        Created </T>{timeAgo(purchase.createdAt)}<T> by </T>{purchase.createdBy || 'unknown'}{' '}<T>
+        · Updated </T>{timeAgo(purchase.updatedAt)}<T> by</T>{' '}
         {purchase.updatedBy || 'unknown'}
         <PurchaseIcon
           size={14}

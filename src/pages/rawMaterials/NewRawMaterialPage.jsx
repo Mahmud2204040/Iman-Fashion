@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * NewRawMaterialPage — Phase 4 sidebar entry point.
  *
@@ -22,12 +23,11 @@ import {
 import { SpoolPlusIcon } from '../../components/icons/DashboardIcon.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { createRawMaterial } from '../../services/rawMaterials/rawMaterialService.js';
+import { cashBusinessDate } from '../../utils/cashDate.js';
 import styles from './NewRawMaterialPage.module.css';
 
 function todayIso() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return cashBusinessDate();
 }
 
 export default function NewRawMaterialPage() {
@@ -41,7 +41,6 @@ export default function NewRawMaterialPage() {
     date: todayIso(),
     purchaseCost: '',
     description: '',
-    notes: '',
   });
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -79,19 +78,19 @@ export default function NewRawMaterialPage() {
         title="Add new raw material"
         description="Log a fabric, accessory, or other material that enters the shop."
         actions={
-          <Link to="/raw-materials" className={styles.backLink}>
+          <Link to="/raw-materials" className={styles.backLink}><T>
             ← Back to raw materials
-          </Link>
+          </T></Link>
         }
       />
 
       {!isOwner ? (
         <Card className={styles.lockedCard}>
-          <h2 className={styles.lockedTitle}>Owner-only</h2>
-          <p className={styles.lockedBody}>
+          <h2 className={styles.lockedTitle}><T>Owner-only</T></h2>
+          <p className={styles.lockedBody}><T>
             Adding raw materials is restricted to the owner role. Sign in with
             an owner account to continue.
-          </p>
+          </T></p>
         </Card>
       ) : (
         <Card className={styles.formCard}>
@@ -99,40 +98,46 @@ export default function NewRawMaterialPage() {
             <span className={styles.formHeadIcon} aria-hidden="true">
               <SpoolPlusIcon size={20} strokeWidth={1.75} />
             </span>
-            <h2 className={styles.formTitle}>Raw material details</h2>
+            <h2 className={styles.formTitle}><T>Raw material details</T></h2>
           </div>
           <form className={styles.form} onSubmit={handleSubmit}>
             <div className={styles.row}>
               <FormField label="Item name" htmlFor="rm-name" required>
-                <Input
-                  id="rm-name"
-                  placeholder="e.g. Cotton fabric — 1.2m roll"
-                  value={draft.itemName}
-                  onChange={update('itemName')}
-                  required
-                />
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    placeholder="e.g. Cotton fabric"
+                    value={draft.itemName}
+                    onChange={update('itemName')}
+                    required
+                  />
+                )}
               </FormField>
               <FormField label="Quantity" htmlFor="rm-qty" required>
-                <Input
-                  id="rm-qty"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={draft.quantity}
-                  onChange={update('quantity')}
-                  required
-                />
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    step="any"
+                    placeholder="Quantity"
+                    value={draft.quantity}
+                    onChange={update('quantity')}
+                    required
+                  />
+                )}
               </FormField>
               <FormField label="Date" htmlFor="rm-date" required>
-                <Input
-                  id="rm-date"
-                  type="date"
-                  value={draft.date}
-                  onChange={update('date')}
-                  required
-                />
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    type="date"
+                    value={draft.date}
+                    onChange={update('date')}
+                    required
+                  />
+                )}
               </FormField>
             </div>
 
@@ -140,44 +145,38 @@ export default function NewRawMaterialPage() {
               <FormField
                 label="Purchase cost (৳, optional)"
                 htmlFor="rm-cost"
-                hint="Used for cost reports"
+                helper="Leave blank if the cost is unknown."
               >
-                <Input
-                  id="rm-cost"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={draft.purchaseCost}
-                  onChange={update('purchaseCost')}
-                />
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    placeholder="Optional"
+                    value={draft.purchaseCost}
+                    onChange={update('purchaseCost')}
+                  />
+                )}
               </FormField>
             </div>
 
             <FormField label="Description" htmlFor="rm-desc">
-              <Textarea
-                id="rm-desc"
-                rows={2}
-                placeholder="Optional notes about colour, supplier, or batch."
-                value={draft.description}
-                onChange={update('description')}
-              />
-            </FormField>
-
-            <FormField label="Internal notes" htmlFor="rm-notes">
-              <Textarea
-                id="rm-notes"
-                rows={2}
-                placeholder="Optional notes visible only to staff."
-                value={draft.notes}
-                onChange={update('notes')}
-              />
+              {(controlProps) => (
+                <Textarea
+                  {...controlProps}
+                  rows={2}
+                  placeholder="Optional details about colour or batch."
+                  value={draft.description}
+                  onChange={update('description')}
+                />
+              )}
             </FormField>
 
             {submitError ? (
               <p className={styles.formError} role="alert">
-                {submitError}
+                <T>{submitError}</T>
               </p>
             ) : null}
 
@@ -186,9 +185,9 @@ export default function NewRawMaterialPage() {
                 type="button"
                 variant="ghost"
                 onClick={() => navigate('/raw-materials')}
-              >
+              ><T>
                 Cancel
-              </Button>
+              </T></Button>
               <Button type="submit" variant="primary" disabled={submitBusy}>
                 {submitBusy ? 'Saving…' : 'Save raw material'}
               </Button>

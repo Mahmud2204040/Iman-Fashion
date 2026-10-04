@@ -8,7 +8,7 @@
 //
 // Fields (REQUIREMENTS §54):
 //   item_name (required), quantity (required), description (optional),
-//   date (required), notes (optional), purchase_cost (optional).
+//   date (required), purchase_cost (optional). Raw materials have no notes field.
 // Audit: created_by / created_at / updated_at.
 //
 // Owner-only writes; list is also owner-only because the route is gated.
@@ -24,7 +24,6 @@ const RAW_MATERIALS = [
     quantity: 120,
     description: 'Bleached cotton, 60-inch width, for school uniforms.',
     date: '2026-08-15',
-    notes: 'Bulk roll from Aarong.',
     purchaseCost: 28800,
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -37,7 +36,6 @@ const RAW_MATERIALS = [
     quantity: 600,
     description: 'Pack of 100 pieces.',
     date: '2026-08-20',
-    notes: '',
     purchaseCost: 1800,
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -50,7 +48,6 @@ const RAW_MATERIALS = [
     quantity: 24,
     description: 'White + assorted colours.',
     date: '2026-09-02',
-    notes: 'Replacement stock.',
     purchaseCost: 3600,
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -135,7 +132,6 @@ export async function createRawMaterial(payload = {}, { actor } = {}) {
   }
 
   const description = String(payload.description || '').trim();
-  const notes = String(payload.notes || '').trim();
 
   const purchaseCost = normaliseCost(payload.purchaseCost);
   if (payload.purchaseCost !== undefined && payload.purchaseCost !== '' && purchaseCost === null) {
@@ -154,7 +150,6 @@ export async function createRawMaterial(payload = {}, { actor } = {}) {
     quantity,
     description,
     date,
-    notes,
     purchaseCost: purchaseCost == null ? null : purchaseCost,
     createdBy,
     createdByRole,
@@ -207,9 +202,6 @@ export async function updateRawMaterial(id, patch = {}, { actor } = {}) {
   }
   if (patch.description !== undefined) {
     next.description = String(patch.description || '').trim();
-  }
-  if (patch.notes !== undefined) {
-    next.notes = String(patch.notes || '').trim();
   }
   if (patch.purchaseCost !== undefined) {
     const v = normaliseCost(patch.purchaseCost);

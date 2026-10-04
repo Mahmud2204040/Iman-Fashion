@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * PurchaseListPage — Phase 9.
  *
@@ -18,8 +19,10 @@ import {
 import { PurchaseIcon } from '../../components/icons/DashboardIcon.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useRole } from '../../hooks/useRole.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { getPurchases } from '../../services/purchases/purchaseService.js';
-import { formatCurrency, timeAgo } from '../../utils/format.js';
+import { formatCount, formatCurrency } from '../../utils/format.js';
+import { cashBusinessDate } from '../../utils/cashDate.js';
 import styles from './PurchaseListPage.module.css';
 
 const STATUS_FILTERS = [
@@ -47,6 +50,7 @@ function statusTone(status) {
 
 export default function PurchaseListPage() {
   const { user } = useAuth();
+  const { language, t } = useLocale();
   const { isOwner } = useRole();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -125,27 +129,20 @@ export default function PurchaseListPage() {
         eyebrow="Procurement"
         title="Purchases"
         description="Orders placed with suppliers, payments recorded against them, and receipt attachments."
-        actions={
-          isOwner ? (
-            <span className={styles.ownerHint} aria-hidden="true">
-              <span className={styles.ownerDot} />
-              <span>Owner view</span>
-            </span>
-          ) : null
-        }
+        actions={isOwner ? <Link to="/purchases/new" className={styles.newPurchase}><T>+ New purchase</T></Link> : null}
       />
 
       <Card className={styles.totalsCard}>
         <div className={styles.totalBlock}>
-          <span className={styles.totalLabel}>Total purchases</span>
+          <span className={styles.totalLabel}><T>Total purchases</T></span>
           <span className={styles.totalValue}>
             {formatCurrency(totals.total)}
           </span>
-          <span className={styles.totalSub}>{rows.length} order{rows.length === 1 ? '' : 's'}</span>
+          <span className={styles.totalSub}>{formatCount(rows.length, 'order', 'orders', 'অর্ডার')}</span>
         </div>
         <span className={styles.totalDivider} aria-hidden="true" />
         <div className={styles.totalBlock}>
-          <span className={styles.totalLabel}>Paid</span>
+          <span className={styles.totalLabel}><T>Paid</T></span>
           <span className={`${styles.totalValue} ${styles.totalPaid}`}>
             {formatCurrency(totals.paid)}
           </span>
@@ -158,7 +155,7 @@ export default function PurchaseListPage() {
               : styles.totalBlock
           }
         >
-          <span className={styles.totalLabel}>Outstanding</span>
+          <span className={styles.totalLabel}><T>Outstanding</T></span>
           <span
             className={
               totals.due > 0
@@ -169,7 +166,7 @@ export default function PurchaseListPage() {
             {formatCurrency(totals.due)}
           </span>
           {totals.due > 0 ? (
-            <span className={styles.dueChip}>Action needed</span>
+            <span className={styles.dueChip}><T>Action needed</T></span>
           ) : null}
         </div>
       </Card>
@@ -198,7 +195,7 @@ export default function PurchaseListPage() {
                   .join(' ')}
                 onClick={() => setStatusFilter(f.id)}
               >
-                <span>{f.label}</span>
+                <span>{t(f.label)}</span>
                 <span className={styles.filterCount}>{counts[f.id] || 0}</span>
               </button>
             );
@@ -208,11 +205,11 @@ export default function PurchaseListPage() {
 
       {loading ? (
         <Card className={styles.statusCard}>
-          <Spinner /> <span>Loading purchases…</span>
+          <Spinner /> <span><T>Loading purchases…</T></span>
         </Card>
       ) : error ? (
         <p className={styles.error} role="alert">
-          {error}
+          <T>{error}</T>
         </p>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -228,8 +225,9 @@ export default function PurchaseListPage() {
         <ul className={styles.list} aria-label="Purchases">
           {filtered.map((o) => {
             const paid = Number(o.paidTotal || 0);
-            const balance = Math.max(Number(o.total || 0) - paid, 0);
+            const balance = o.status === 'CANCELLED' ? 0 : Math.max(Number(o.total || 0) - paid, 0);
             const itemsCount = (o.items || []).length;
+            const purchaseDate = cashBusinessDate(o.orderedAt);
             return (
               <li key={o.id}>
                 <Link to={`/purchases/${o.id}`} className={styles.row}>
@@ -238,30 +236,30 @@ export default function PurchaseListPage() {
                     <span className={styles.supplier}>{o.supplierName}</span>
                     <span className={styles.meta}>
                       <span>
-                        {itemsCount} item{itemsCount === 1 ? '' : 's'}
+                        {itemsCount} {language === 'bn' ? 'আইটেম' : itemsCount === 1 ? 'item' : 'items'}
                       </span>
                       <span className={styles.dot} aria-hidden="true">·</span>
-                      <span>ordered {timeAgo(o.orderedAt)}</span>
+                      <span>{t('Purchase date')} {purchaseDate}</span>
                       {user && o.createdBy ? (
                         <>
                           <span className={styles.dot} aria-hidden="true">·</span>
-                          <span>by {o.createdBy}</span>
+                          <span><T>by </T>{o.createdBy}</span>
                         </>
                       ) : null}
                     </span>
                   </div>
                   <div className={styles.rowSide}>
                     <span className={[styles.statusPill, statusTone(o.status)].join(' ')}>
-                      {o.status.toLowerCase()}
+                      {t(o.status)}
                     </span>
                     <div className={styles.amounts}>
                       <span className={styles.total}>{formatCurrency(o.total)}</span>
                       {balance > 0 ? (
-                        <span className={styles.balance}>
-                          Due {formatCurrency(balance)}
+                        <span className={styles.balance}><T>
+                          Due </T>{formatCurrency(balance)}
                         </span>
                       ) : (
-                        <span className={styles.paid}>Fully paid</span>
+                        <span className={styles.paid}>{o.status === 'CANCELLED' ? t('Cancelled — no active due') : t('Fully paid')}</span>
                       )}
                     </div>
                   </div>

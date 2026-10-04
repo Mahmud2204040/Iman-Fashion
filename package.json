@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "NI Fashion shop management — frontend (mock-only).",
+  "description": "NI Fashion shop management — API-backed accounts with mock business modules.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -20,7 +20,8 @@
     "smoke:raw-materials": "node scripts/smoke-raw-materials.mjs",
     "smoke:expenses": "node scripts/smoke-expenses.mjs",
     "smoke:cash": "node scripts/smoke-cash.mjs",
-    "smoke:all": "npm run smoke:auth && npm run smoke:dashboard && npm run smoke:sales && npm run smoke:customers && npm run smoke:custom-orders && npm run smoke:products && npm run smoke:suppliers && npm run smoke:purchases && npm run smoke:raw-materials && npm run smoke:expenses && npm run smoke:cash",
+    "smoke:reports": "node scripts/smoke-reports.mjs",
+    "smoke:all": "npm run smoke:auth && npm run smoke:dashboard && npm run smoke:sales && npm run smoke:customers && npm run smoke:custom-orders && npm run smoke:products && npm run smoke:suppliers && npm run smoke:purchases && npm run smoke:raw-materials && npm run smoke:expenses && npm run smoke:cash && npm run smoke:reports",
     "probe:login": "powershell -NoProfile -ExecutionPolicy Bypass -File probe-login.ps1"
   },
   "dependencies": {

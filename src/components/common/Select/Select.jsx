@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 import styles from './Select.module.css';
 
 /**
@@ -23,10 +24,13 @@ const Select = forwardRef(function Select(
     name,
     id,
     className = '',
+    children,
+    'aria-label': ariaLabel,
     ...rest
   },
   ref,
 ) {
+  const { t } = useLocale();
   const classes = [
     styles.select,
     styles[`size-${size}`],
@@ -47,21 +51,22 @@ const Select = forwardRef(function Select(
       disabled={disabled}
       required={required}
       aria-invalid={invalid || undefined}
+      aria-label={typeof ariaLabel === 'string' ? t(ariaLabel) : ariaLabel}
       className={classes}
       {...rest}
     >
       {placeholder ? (
         <option value="" disabled>
-          {placeholder}
+          {t(placeholder)}
         </option>
       ) : null}
-      {options.map((opt) => (
+      {children || options.map((opt) => (
         <option
           key={String(opt.value)}
           value={opt.value}
           disabled={opt.disabled}
         >
-          {opt.label}
+          {typeof opt.label === 'string' ? t(opt.label) : opt.label}
         </option>
       ))}
     </select>

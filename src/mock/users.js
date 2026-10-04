@@ -7,8 +7,8 @@
  *   owner    / 1234  → OWNER
  *   employee / 1234  → EMPLOYEE
  *
- * This is a mock. There is NO password storage, NO hashing, NO real auth.
- * A real backend will replace this entirely.
+ * This is a mock. These are the initial credentials until a local demo
+ * password is set for an account. A real backend must replace this.
  *
  * The password is stored in this single fixture file only and never leaves
  * the authService. The UI never receives the password after login.
@@ -27,9 +27,6 @@ export const MOCK_USERS = Object.freeze([
 ]);
 
 /**
- * The single password every mock account shares in development.
- *
- * Kept as a constant so it is impossible to forget that the mock auth
- * has no per-user secret.
+ * Initial password for the built-in demo accounts only.
  */
 export const MOCK_PASSWORD = '1234';

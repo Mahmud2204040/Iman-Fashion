@@ -328,7 +328,7 @@
 }
 .payFormRow {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 .payError {
@@ -486,3 +486,4 @@
     transform: translateY(0);
   }
 }
+.actionError { color: var(--color-danger, #b42318); background: #fef3f2; padding: var(--space-3); border-radius: var(--radius-sm); }

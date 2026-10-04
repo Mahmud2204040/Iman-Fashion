@@ -1,15 +1,3 @@
-/*
- * Topbar — sticky bar above page content.
- *
- * Three sections:
- *   - Left:  mobile menu toggle (hidden >=768px).
- *   - Right: clock, role badge, refresh action, sign-out.
- *
- * The clock uses tabular numerals so the width doesn't jitter.
- * The role badge is a pill with brand-tinted colors and a soft
- * background — visible at a glance without being shouty.
- */
-
 .topbar {
   position: sticky;
   top: 0;
@@ -17,165 +5,123 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
-  padding: 0 var(--space-6);
-  /* A taller header so the brand logo + wordmark can sit comfortably
-     without crowding the action buttons on the right. */
-  min-height: 76px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: saturate(180%) blur(12px);
-  -webkit-backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--color-border);
+  gap: 20px;
+  min-height: 78px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--nf-border, #e4e0d6);
+  background: var(--nf-surface, #fffdf8);
 }
 
-.topbarLeft {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-/* Brand slot — the NI Fashion logo lives here instead of inside the
-   dashboard hero. Sized a touch smaller than the sidebar logo so it
-   fits comfortably in the topbar.
-
-   Hidden on desktop (>=1024px) because the sidebar already shows the
-   full logo. Shown on tablet + mobile where the sidebar is collapsed
-   and the brand would otherwise be invisible. */
-.topbarBrand {
-  display: none;
-  align-items: center;
-  min-width: 0;
-}
-
-.topbarMenuButton {
-  display: none;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  color: var(--color-text);
-  transition: background var(--transition-fast);
-}
-
-.topbarMenuButton:hover {
-  background: var(--color-neutral-100);
-}
-
-.topbarMenuButton:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
+.topbarLeft,
 .topbarRight {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  min-width: 0;
 }
 
-/* ---------- Clock ---------- */
+.topbarRight { gap: 12px; }
+.topbarBrand { display: none; }
+.topbarMenuButton { display: none; }
 
-.topbarClock {
-  display: inline-flex;
+.breadcrumb {
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 6px var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--color-neutral-50);
-  border: 1px solid var(--color-border);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-}
-
-.topbarClockIcon {
-  color: var(--color-text-muted);
-  display: inline-flex;
-  align-items: center;
-}
-
-.topbarDate {
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
-}
-
-.topbarDivider {
-  color: var(--color-text-muted);
-  user-select: none;
-}
-
-.topbarTime {
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
-  letter-spacing: 0.01em;
-}
-
-/* ---------- Role badge (pill) ---------- */
-
-.topbarRoleOwner,
-.topbarRoleEmployee,
-.topbarRoleGuest {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  gap: 9px;
+  min-width: 0;
+  color: var(--nf-muted, #74786f);
   font-size: 11px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-wide);
+  font-weight: 600;
+  letter-spacing: .055em;
   text-transform: uppercase;
-  padding: 4px 10px 4px 8px;
-  border-radius: var(--radius-full);
   white-space: nowrap;
 }
 
-.topbarRoleOwner {
-  background: var(--gradient-brand-soft);
-  color: var(--color-primary-active);
-  border: 1px solid var(--color-primary-ring);
+.breadcrumb span + span::before {
+  content: '/';
+  margin-right: 9px;
+  color: #acafa8;
 }
 
-.topbarRoleEmployee {
-  background: var(--color-info-soft);
-  color: var(--color-info-ink);
-  border: 1px solid #bae6fd;
+.breadcrumb span:last-child {
+  overflow: hidden;
+  color: var(--nf-ink, #171817);
+  text-overflow: ellipsis;
 }
 
-.topbarRoleGuest {
-  background: var(--color-neutral-100);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+.topbarClock,
+.languageSelect,
+.topbarRole {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 12px;
+  white-space: nowrap;
 }
 
-.topbarRoleDot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: currentColor;
-  flex-shrink: 0;
+.topbarClock {
+  gap: 9px;
+  padding: 0 13px;
+  border: 1px solid var(--nf-border, #e4e0d6);
+  color: var(--nf-ink, #171817);
+  font-size: 12px;
 }
 
-/* ---------- Responsive ---------- */
+.topbarClockIcon { display: inline-flex; color: var(--nf-muted, #74786f); }
+.topbarDate { font-weight: 600; }
+.topbarDivider { color: var(--nf-border, #e4e0d6); }
+.topbarTime { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.languageSelect {
+  min-width: 88px;
+  padding: 0 12px;
+  border: 1px solid var(--nf-border, #e4e0d6);
+  background: var(--nf-surface, #fffdf8);
+  color: var(--nf-ink, #171817);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.languageSelect:focus-visible,
+.topbarMenuButton:focus-visible {
+  outline: 3px solid var(--nf-lime, #c7f36b);
+  outline-offset: 2px;
+}
+
+.topbarRole {
+  min-width: 82px;
+  padding: 0 14px;
+  background: var(--nf-ink, #171817);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
 
 @media (max-width: 1023px) {
-  .topbarClock {
-    display: none;
+  .topbar { padding: 0 24px; }
+  .topbarLeft { gap: 12px; }
+  .topbarMenuButton {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: none;
+    border: 1px solid var(--nf-border, #e4e0d6);
+    border-radius: 11px;
+    color: var(--nf-ink, #171817);
   }
-
-  /* Show the topbar brand only when the sidebar logo isn't visible. */
-  .topbarBrand {
-    display: flex;
-  }
+  .topbarBrand { display: flex; }
+  .breadcrumb { display: none; }
 }
 
-@media (max-width: 767px) {
-  .topbar {
-    padding: 0 var(--space-4);
-    min-height: 68px;
-  }
-  .topbarRoleOwner,
-  .topbarRoleEmployee,
-  .topbarRoleGuest {
-    /* Hide on very small screens — clock takes too much room. */
-    display: none;
-  }
+@media (max-width: 640px) {
+  .topbar { min-height: 68px; padding: 0 16px; gap: 8px; }
+  .topbarBrand { max-width: 160px; overflow: hidden; }
+  .topbarClock { display: none; }
+  .topbarRight { gap: 6px; }
+  .languageSelect { min-width: 68px; height: 38px; padding: 0 5px; }
+  .topbarRole { min-width: 0; height: 38px; padding: 0 9px; font-size: 10px; }
 }

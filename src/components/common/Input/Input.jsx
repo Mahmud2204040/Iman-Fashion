@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 import styles from './Input.module.css';
 
 /**
@@ -19,10 +20,12 @@ const Input = forwardRef(function Input(
     name,
     id,
     className = '',
+    'aria-label': ariaLabel,
     ...rest
   },
   ref,
 ) {
+  const { t } = useLocale();
   const classes = [
     styles.input,
     styles[`size-${size}`],
@@ -41,11 +44,13 @@ const Input = forwardRef(function Input(
       name={name}
       value={value ?? ''}
       onChange={onChange}
-      placeholder={placeholder}
+      onInput={type === 'date' ? onChange : undefined}
+      placeholder={typeof placeholder === 'string' ? t(placeholder) : placeholder}
       disabled={disabled}
       readOnly={readOnly}
       required={required}
       aria-invalid={invalid || undefined}
+      aria-label={typeof ariaLabel === 'string' ? t(ariaLabel) : ariaLabel}
       className={classes}
       {...rest}
     />

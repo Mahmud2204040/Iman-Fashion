@@ -1,4 +1,5 @@
 import { forwardRef, useId } from 'react';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 
 import styles from './SearchInput.module.css';
 
@@ -66,12 +67,15 @@ const SearchInput = forwardRef(function SearchInput(
     className = '',
     onClear,
     inputClassName = '',
+    icon,
     showClearWhenEmpty = false,
     type = 'search',
+    'aria-label': ariaLabel,
     ...rest
   },
   ref,
 ) {
+  const { t } = useLocale();
   const id = useId();
   const hasValue = value !== undefined && value !== null && String(value).length > 0;
   const showClear = hasValue || showClearWhenEmpty;
@@ -100,7 +104,7 @@ const SearchInput = forwardRef(function SearchInput(
   return (
     <div className={wrapClasses}>
       <span className={styles.icon} aria-hidden="true">
-        <SearchIcon />
+        {icon || <SearchIcon />}
       </span>
       <input
         ref={ref}
@@ -108,7 +112,8 @@ const SearchInput = forwardRef(function SearchInput(
         type={type}
         value={value}
         onChange={onChange}
-        placeholder={placeholder}
+        placeholder={t(placeholder)}
+        aria-label={typeof ariaLabel === 'string' ? t(ariaLabel) : ariaLabel}
         disabled={disabled}
         className={inputClasses}
         autoComplete="off"
@@ -120,7 +125,7 @@ const SearchInput = forwardRef(function SearchInput(
           type="button"
           className={styles.clear}
           onClick={handleClear}
-          aria-label="Clear search"
+          aria-label={t('Clear search')}
           tabIndex={-1}
         >
           <ClearIcon />

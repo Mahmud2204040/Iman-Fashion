@@ -2,7 +2,7 @@
  * customer.js — Phase 6 derived helpers.
  *
  * Phase 6 contract (FRONTEND_PLAN.md):
- *   "Children with derived current class from initial_class + years_since(created_at)"
+ *   "Children with derived current class from initial_class + years_since(registered_date)"
  *
  * The "class" here is a school uniform concept (e.g. "Class 3" or just
  * "3") that advances by one each year since the child was added. The
@@ -25,6 +25,13 @@
 
 const NUMERIC_RE = /\d+/;
 
+/** Current calendar date in the shop's Asia/Dhaka timezone. */
+export function shopDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+}
+
 /**
  * Extract the numeric prefix of a class label.
  * "Class 3"  -> 3
@@ -43,15 +50,14 @@ function extractClassNumber(label) {
  * ago is still "in the same class".
  */
 function yearsSince(from, now) {
-  const start = new Date(from);
-  const today = new Date(now);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) {
-    return 0;
-  }
-  let years = today.getFullYear() - start.getFullYear();
+  const date = String(from || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 0;
+  const [year, month, day] = date.split('-').map(Number);
+  const [todayYear, todayMonth, todayDay] = shopDate(now).split('-').map(Number);
+  let years = todayYear - year;
   const beforeBirthday =
-    today.getMonth() < start.getMonth() ||
-    (today.getMonth() === start.getMonth() && today.getDate() < start.getDate());
+    todayMonth < month ||
+    (todayMonth === month && todayDay < day);
   if (beforeBirthday) years -= 1;
   return Math.max(0, years);
 }
@@ -60,11 +66,11 @@ function yearsSince(from, now) {
  * Derive the "current class" from an initial_class string and the
  * date the child joined. See module docstring for the rules.
  */
-export function deriveCurrentClass(initialClass, createdAt, now = new Date()) {
+export function deriveCurrentClass(initialClass, registeredDate, now = new Date()) {
   const label = String(initialClass || '').trim();
   if (!label) return label;
   const n = extractClassNumber(label);
   if (n === null) return label; // alphabetic / no digits — unchanged
-  const delta = yearsSince(createdAt, now);
+  const delta = yearsSince(registeredDate, now);
   return String(n + delta);
 }

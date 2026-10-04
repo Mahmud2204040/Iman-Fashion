@@ -1,5 +1,6 @@
 import Modal from '../Modal/Modal.jsx';
 import Button from '../Button/Button.jsx';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 
 /**
  * ConfirmDialog — built on Modal.
@@ -22,6 +23,7 @@ function ConfirmDialog({
   tone = 'normal',
   loading = false,
 }) {
+  const { t } = useLocale();
   const handleConfirm = () => {
     if (loading) return;
     onConfirm?.();
@@ -48,7 +50,7 @@ function ConfirmDialog({
         </>
       }
     >
-      {message ? <p style={{ margin: 0 }}>{message}</p> : null}
+      {message ? <p style={{ margin: 0 }}>{typeof message === 'string' ? t(message) : message}</p> : null}
     </Modal>
   );
 }

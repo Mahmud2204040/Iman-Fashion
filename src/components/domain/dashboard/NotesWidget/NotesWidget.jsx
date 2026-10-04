@@ -1,4 +1,6 @@
+import T from '../../../common/LocalizedText.jsx';
 import { useEffect, useId, useRef, useState } from 'react';
+import { useLocale } from '../../../../contexts/LocaleContext.jsx';
 
 import Button from '../../../common/Button/Button.jsx';
 import Textarea from '../../../common/Textarea/Textarea.jsx';
@@ -45,6 +47,7 @@ function saveNote(value) {
 }
 
 function NotesWidget() {
+  const { t } = useLocale();
   const textareaId = useId();
   const [draft, setDraft] = useState(loadNote);
   const [savedAt, setSavedAt] = useState(null);
@@ -78,11 +81,11 @@ function NotesWidget() {
   const overLimit = remaining < 0;
 
   const hintText = savedAt
-    ? `Saved at ${new Intl.DateTimeFormat('en-GB', {
+    ? `${t('Saved at')} ${new Intl.DateTimeFormat('en-GB', {
         hour: '2-digit',
         minute: '2-digit',
       }).format(savedAt)}`
-    : 'Notes are saved locally to your account.';
+    : t('Notes are saved locally to your account.');
 
   return (
     <section className={styles.card} aria-labelledby="dashboard-notes-heading">
@@ -91,10 +94,10 @@ function NotesWidget() {
           <NoteIcon size={18} strokeWidth={1.75} />
         </span>
         <div className={styles.headerText}>
-          <h2 id="dashboard-notes-heading" className={styles.title}>
+          <h2 id="dashboard-notes-heading" className={styles.title}><T>
             Notes & Reminders
-          </h2>
-          <span className={styles.subtitle}>Private to this account</span>
+          </T></h2>
+          <span className={styles.subtitle}><T>Private to this account</T></span>
         </div>
       </header>
 
@@ -105,11 +108,11 @@ function NotesWidget() {
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Jot down quick reminders — fabric orders to call, customer dues to chase, weekend plans…"
+        placeholder={t('Jot down quick reminders — fabric orders to call, customer dues to chase, weekend plans…')}
         rows={4}
         maxLength={MAX_LENGTH + 100}
         invalid={overLimit}
-        aria-label="Note text"
+        aria-label={t('Note text')}
       />
 
       <div className={styles.footer}>
@@ -117,7 +120,7 @@ function NotesWidget() {
           className={`${styles.hint} ${overLimit ? styles.hintError : ''}`}
         >
           {overLimit
-            ? `Over limit by ${Math.abs(remaining)} characters`
+            ? `${t('Over limit by')} ${Math.abs(remaining)} ${t('characters')}`
             : hintText}
         </span>
 
@@ -128,9 +131,9 @@ function NotesWidget() {
           onClick={commit}
           disabled={overLimit || draft.trim().length === 0}
           leftIcon={<CheckIcon size={14} strokeWidth={2} />}
-        >
+        ><T>
           Save note
-        </Button>
+        </T></Button>
       </div>
     </section>
   );

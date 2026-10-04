@@ -9,8 +9,8 @@
  *   - flat (a list of leaf items), or
  *   - nested (one or more sub-groups, each containing leaf items).
  *
- * A nested group renders an expand/collapse header in the sidebar; a
- * flat group renders its items directly under the group label.
+ * The sidebar flattens nested groups into direct links under the top-level
+ * static section label; there are no navigation dropdowns.
  *
  * `icon` is a small inline SVG component reference so we don't need an
  * icon library. The Icon component renders the actual SVG.
@@ -19,9 +19,7 @@ import { ROLES } from './roles.js';
 
 import {
   DashboardIcon,
-  SaleIcon,
   CustomerIcon,
-  CustomOrderIcon,
   ProductIcon,
   SupplierIcon,
   PurchaseIcon,
@@ -32,9 +30,7 @@ import {
   PlusIcon,
   UserPlusIcon,
   BookIcon,
-  PackagePlusIcon,
   SpoolIcon,
-  SpoolPlusIcon,
 } from '../components/icons/DashboardIcon.jsx';
 
 /**
@@ -75,7 +71,7 @@ export const NAV_GROUPS = [
         label: 'Dashboard',
         path: '/dashboard',
         icon: DashboardIcon,
-        roles: [ROLES.OWNER, ROLES.EMPLOYEE],
+        roles: [ROLES.OWNER],
         end: true,
       },
     ],
@@ -143,42 +139,26 @@ export const NAV_GROUPS = [
     items: [
       {
         id: 'inventory-products',
-        label: 'Product & Stock',
+        label: 'Products & stock',
         items: [
           {
             id: 'products-current',
-            label: 'Current Product Stock',
+            label: 'Products & stock',
             path: '/products',
             icon: ProductIcon,
-            roles: [ROLES.OWNER],
-            end: true,
-          },
-          {
-            id: 'products-new',
-            label: 'Add New Product',
-            path: '/products/new',
-            icon: PackagePlusIcon,
             roles: [ROLES.OWNER],
           },
         ],
       },
       {
         id: 'inventory-raw',
-        label: 'Raw Material Stock',
+        label: 'Raw material stock',
         items: [
           {
             id: 'raw-materials-current',
-            label: 'Current Raw Material Stock',
+            label: 'Raw material stock',
             path: '/raw-materials',
             icon: SpoolIcon,
-            roles: [ROLES.OWNER],
-            end: true,
-          },
-          {
-            id: 'raw-materials-new',
-            label: 'Add New Raw Material',
-            path: '/raw-materials/new',
-            icon: SpoolPlusIcon,
             roles: [ROLES.OWNER],
           },
         ],
@@ -199,7 +179,7 @@ export const NAV_GROUPS = [
       },
       {
         id: 'purchases',
-        label: 'Purchases',
+        label: 'Purchase history',
         path: '/purchases',
         icon: PurchaseIcon,
         roles: [ROLES.OWNER],

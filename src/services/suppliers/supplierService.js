@@ -12,10 +12,8 @@
  *   - No automatic cash treatment here — owner records payments
  *     manually outside shop cash.
  *
- * Paired CASH_OUT pattern is mirrored from customOrderService's
- * CASH_IN pairing, but kept as an exported `cashOuts` array so the
- * owner has a record per supplier payment. This is purely
- * informational; shop cash management does not include these rows.
+ * Payments are allocated to purchases only. A physical cash payment needs
+ * a separate, explicit Owner Cash Out when shop cash should change.
  *
  * Real backend will replace this file entirely.
  */
@@ -34,7 +32,6 @@ const SUPPLIERS = [
     phone: '+8801711000111',
     email: 'orders@aarong.example',
     address: 'Plot 14, Tejgaon Industrial Area, Dhaka',
-    category: 'Fabrics',
     notes: 'Primary uniform fabric supplier — net 30 terms.',
     isActive: true,
     createdBy: 'owner',
@@ -51,7 +48,6 @@ const SUPPLIERS = [
     phone: '+8801722000222',
     email: 'sales@bengaltrims.example',
     address: '21 Islampur Road, Dhaka 1100',
-    category: 'Trims & accessories',
     notes: 'Cash on delivery. Small orders only.',
     isActive: true,
     createdBy: 'owner',
@@ -68,7 +64,6 @@ const SUPPLIERS = [
     phone: '+8801733000333',
     email: 'kamrul@deshidye.example',
     address: 'BSCIC Estate, Tongi, Gazipur',
-    category: 'Dyeing & finishing',
     notes: 'Bulk orders only. Lead time 10–14 days.',
     isActive: true,
     createdBy: 'owner',
@@ -85,7 +80,6 @@ const SUPPLIERS = [
     phone: '+8801744000444',
     email: 'rezaul@gpack.example',
     address: 'Mouchak, Kaliakair, Gazipur',
-    category: 'Packaging',
     notes: 'Poly bags, tags, and cartons.',
     isActive: true,
     createdBy: 'owner',
@@ -102,7 +96,6 @@ const SUPPLIERS = [
     phone: '+8801755000555',
     email: '',
     address: 'Mirpur 10, Dhaka 1216',
-    category: 'Outsource tailoring',
     notes: 'Inactive — switched to in-house production 2025-08.',
     isActive: false,
     createdBy: 'owner',
@@ -119,7 +112,7 @@ const SUPPLIERS = [
 /* -------------------------------------------------------------------------- */
 
 function cloneSupplier(s) {
-  return { ...s };
+  return { ...s, supplierCode: `SUP-${String(s.id).split('-')[1]}` };
 }
 
 function nowIso() {
@@ -162,7 +155,7 @@ export async function searchSuppliers(query = '') {
       s.name.toLowerCase().includes(q) ||
       (s.contactPerson || '').toLowerCase().includes(q) ||
       (s.phone || '').toLowerCase().includes(q) ||
-      (s.category || '').toLowerCase().includes(q),
+      `sup-${String(s.id).split('-')[1]}`.includes(q)
   ).map(cloneSupplier);
 }
 
@@ -175,7 +168,6 @@ export async function createSupplier(payload = {}, { actor } = {}) {
   const phone = String(payload.phone || '').trim();
   const email = String(payload.email || '').trim();
   const address = String(payload.address || '').trim();
-  const category = String(payload.category || '').trim() || 'General';
   const notes = String(payload.notes || '').trim();
 
   if (!name) {
@@ -213,7 +205,6 @@ export async function createSupplier(payload = {}, { actor } = {}) {
     phone,
     email,
     address,
-    category,
     notes,
     isActive: payload.isActive === false ? false : true,
     createdBy,
@@ -266,9 +257,6 @@ export async function updateSupplier(id, patch = {}, { actor } = {}) {
   if (patch.address !== undefined) {
     next.address = String(patch.address || '').trim();
   }
-  if (patch.category !== undefined) {
-    next.category = String(patch.category || '').trim() || 'General';
-  }
   if (patch.notes !== undefined) {
     next.notes = String(patch.notes || '').trim();
   }
@@ -304,7 +292,11 @@ export function computeSupplierTotals(supplier, purchases = []) {
       (p.payments || []).reduce((x, pay) => x + Number(pay.amount || 0), 0),
     0,
   );
-  const dueTotal = Math.max(purchasesTotal - paidTotal, 0);
+  const dueTotal = mine.reduce((sum, purchase) => {
+    if (purchase.status === 'CANCELLED') return sum;
+    const paid = (purchase.payments || []).reduce((amount, payment) => amount + Number(payment.amount || 0), 0);
+    return sum + Math.max(Number(purchase.total || 0) - paid, 0);
+  }, 0);
   return {
     purchasesTotal,
     paidTotal,
@@ -315,7 +307,7 @@ export function computeSupplierTotals(supplier, purchases = []) {
 
 /**
  * Flat list of all supplier-side payments (for the "all supplier payments"
- * view). Mirrors the paired-CASH_OUT contract from spec §Phase 9.
+ * view). These records never synthesize a shop Cash Out.
  *
  * Per FRONTEND_PLAN.md, supplier payments do NOT appear in shop cash —
  * they live on the supplier's record only.
@@ -330,20 +322,6 @@ export function getAllSupplierPayments(purchases = []) {
         supplierName: p.supplierName,
         purchaseId: p.id,
         purchaseCode: p.code,
-        cashOutId: pay.cashOutId || null,
-        pairedCashOut: pay.cashOutId
-          ? {
-              id: pay.cashOutId,
-              type: 'CASH_OUT',
-              amount: pay.amount,
-              referenceType: 'SUPPLIER_PAYMENT',
-              referenceId: p.id,
-              reason: 'Supplier payment — ' + p.code,
-              createdBy: pay.createdBy,
-              createdByRole: pay.createdByRole,
-              createdAt: pay.createdAt,
-            }
-          : null,
       });
     }
   }

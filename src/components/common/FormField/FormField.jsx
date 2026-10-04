@@ -1,4 +1,5 @@
-import { useId } from 'react';
+import { cloneElement, isValidElement, useId } from 'react';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 import styles from './FormField.module.css';
 
 /**
@@ -23,6 +24,7 @@ function FormField({
   className = '',
   children,
 }) {
+  const { t } = useLocale();
   const generatedId = useId();
   const fieldId = htmlFor || generatedId;
   const helperId = helper ? `${fieldId}-helper` : undefined;
@@ -37,7 +39,7 @@ function FormField({
     <div className={classes}>
       {label ? (
         <label className={styles.label} htmlFor={fieldId}>
-          {label}
+          {typeof label === 'string' ? t(label) : label}
           {required ? (
             <span className={styles.required} aria-hidden="true">
               *
@@ -46,17 +48,27 @@ function FormField({
         </label>
       ) : null}
 
-      <div className={styles.control}>{children({ id: fieldId, 'aria-describedby': describedBy, 'aria-invalid': error ? true : undefined })}</div>
+      <div className={styles.control}>
+        {typeof children === 'function'
+          ? children({ id: fieldId, 'aria-describedby': describedBy, 'aria-invalid': error ? true : undefined })
+          : isValidElement(children)
+            ? cloneElement(children, {
+                id: children.props.id || fieldId,
+                'aria-describedby': describedBy,
+                'aria-invalid': error ? true : undefined,
+              })
+            : children}
+      </div>
 
       {helper && !error ? (
         <p id={helperId} className={styles.helper}>
-          {helper}
+          {typeof helper === 'string' ? t(helper) : helper}
         </p>
       ) : null}
 
       {error ? (
         <p id={errorId} className={styles.error} role="alert">
-          {error}
+          {typeof error === 'string' ? t(error) : error}
         </p>
       ) : null}
     </div>

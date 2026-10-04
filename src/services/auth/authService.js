@@ -2,7 +2,7 @@
  * authService — Phase 3, frontend-only mock.
  *
  * Responsibilities:
- *   - Validate the two documented mock credential pairs.
+ *   - Validate built-in demo credentials or locally configured demo passwords.
  *   - Simulate async behavior with `delay`.
  *   - Persist / restore / clear the session blob in either localStorage
  *     (remember-me ON) or sessionStorage (remember-me OFF).
@@ -10,14 +10,13 @@
  * The service NEVER exposes the password to callers. It returns a public
  * mock user shape `{ username, role, isMock }`.
  *
- * Per PROJECT_RULES.md §84, real password storage, hashing, JWT, etc.
- * are backend concerns. This file is a placeholder until that backend
- * exists.
+ * Locally configured demo passwords are verified by userService. This is
+ * not a substitute for server-side authentication or authorization.
  */
 
 import { ROLES } from '../../constants/roles.js';
 import { STORAGE_KEYS, STORAGE_KIND } from '../../constants/storage.js';
-import { MOCK_USERS, MOCK_PASSWORD } from '../../mock/users.js';
+import { findAccount, verifyAccountPassword } from '../users/userService.js';
 import { delay } from '../delay.js';
 
 /* -------------------------------------------------------------------------- */
@@ -72,7 +71,7 @@ function clearSession() {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Authenticate against the two hardcoded mock users.
+ * Authenticate against the current local demo accounts.
  *
  * @param {{ username: string, password: string, rememberMe?: boolean }} credentials
  * @returns {Promise<{ username: string, role: 'OWNER'|'EMPLOYEE', isMock: true }>}
@@ -95,9 +94,9 @@ export async function login({ username, password, rememberMe = false }) {
     throw err;
   }
 
-  const match = MOCK_USERS.find((m) => m.username === u);
+  const match = findAccount(u);
   // Deliberately do NOT reveal whether username or password was wrong.
-  if (!match || p !== MOCK_PASSWORD) {
+  if (!match || !match.isActive || !(await verifyAccountPassword(u, p))) {
     const err = new Error('Invalid username or password.');
     err.code = 'INVALID_CREDENTIALS';
     throw err;
@@ -129,5 +128,12 @@ export async function logout() {
  */
 export async function getCurrentUser() {
   await delay(50);
-  return readSession();
+  const session = readSession();
+  if (!session) return null;
+  const account = findAccount(session.username);
+  if (!account || !account.isActive || account.role !== session.role) {
+    clearSession();
+    return null;
+  }
+  return session;
 }

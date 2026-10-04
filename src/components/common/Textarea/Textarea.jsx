@@ -1,4 +1,5 @@
 import { forwardRef } from 'react';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 import styles from './Textarea.module.css';
 
 const Textarea = forwardRef(function Textarea(
@@ -15,10 +16,12 @@ const Textarea = forwardRef(function Textarea(
     name,
     id,
     className = '',
+    'aria-label': ariaLabel,
     ...rest
   },
   ref,
 ) {
+  const { t } = useLocale();
   const classes = [
     styles.textarea,
     fullWidth ? styles.fullWidth : '',
@@ -35,12 +38,13 @@ const Textarea = forwardRef(function Textarea(
       name={name}
       value={value ?? ''}
       onChange={onChange}
-      placeholder={placeholder}
+      placeholder={typeof placeholder === 'string' ? t(placeholder) : placeholder}
       disabled={disabled}
       readOnly={readOnly}
       required={required}
       rows={rows}
       aria-invalid={invalid || undefined}
+      aria-label={typeof ariaLabel === 'string' ? t(ariaLabel) : ariaLabel}
       className={classes}
       {...rest}
     />

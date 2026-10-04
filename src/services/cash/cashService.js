@@ -14,14 +14,17 @@
  *     reason, createdBy, createdByRole, createdAt, sessionDate
  *   }
  *
- * Two row types only:
+ * Ledger row types:
  *   - CASH_IN   — referenceType ∈ SALE / CUSTOM_ORDER_PAYMENT / MANUAL
  *   - CASH_OUT  — referenceType ∈ MANUAL
+ *   - OPENING — one initial seed (zero allowed)
+ *   - CASH_ADJUSTMENT — signed reconciliation correction
  *
  * Real backend will replace this file entirely.
  */
 import { delay } from '../delay.js';
 import { ROLES } from '../../constants/roles.js';
+import { cashBusinessDate, cashDayStart, cashDateRange } from '../../utils/cashDate.js';
 
 const OWNER_ROLE = [ROLES.OWNER];
 
@@ -65,14 +68,14 @@ let nextSeq = LEDGER.length;
  */
 const SEED_CASH_IN = [
   // Mirror of seed sales (salesService.js seed log).
-  { id: 'cashin-001', amount: 1650, reason: 'Sale S-20250901-0014', createdBy: 'owner',        createdByRole: ROLES.OWNER,    createdAt: '2026-09-01T11:24:00Z' },
-  { id: 'cashin-002', amount: 720,  reason: 'Sale S-20250901-0013', createdBy: 'employee',     createdByRole: ROLES.EMPLOYEE, createdAt: '2026-09-01T10:11:00Z' },
-  { id: 'cashin-003', amount: 1240, reason: 'Sale S-20250901-0012', createdBy: 'employee',     createdByRole: ROLES.EMPLOYEE, createdAt: '2026-09-01T09:02:00Z' },
-  { id: 'cashin-004', amount: 2300, reason: 'Sale S-20250831-0009', createdBy: 'owner',        createdByRole: ROLES.OWNER,    createdAt: '2026-08-31T18:42:00Z' },
-  { id: 'cashin-005', amount: 2350, reason: 'Sale S-20250831-0008', createdBy: 'owner',        createdByRole: ROLES.OWNER,    createdAt: '2026-08-31T15:10:00Z' },
+  { id: 'cashin-001', amount: 1650, reason: 'Sale S-20260901-0014', createdBy: 'owner',        createdByRole: ROLES.OWNER,    createdAt: '2026-09-01T11:24:00Z' },
+  { id: 'cashin-002', amount: 720,  reason: 'Sale S-20260901-0013', createdBy: 'employee',     createdByRole: ROLES.EMPLOYEE, createdAt: '2026-09-01T10:11:00Z' },
+  { id: 'cashin-003', amount: 1240, reason: 'Sale S-20260901-0012', createdBy: 'employee',     createdByRole: ROLES.EMPLOYEE, createdAt: '2026-09-01T09:02:00Z' },
+  { id: 'cashin-004', amount: 2300, reason: 'Sale S-20260831-0009', createdBy: 'owner',        createdByRole: ROLES.OWNER,    createdAt: '2026-08-31T18:42:00Z' },
+  { id: 'cashin-005', amount: 2350, reason: 'Sale S-20260831-0008', createdBy: 'owner',        createdByRole: ROLES.OWNER,    createdAt: '2026-08-31T15:10:00Z' },
   // Mirror of seed custom-order payments (customOrderService.js seed).
-  { id: 'cashin-co-001', amount: 1500, reason: 'Custom-order payment CO-20250901-0003', createdBy: 'owner', createdByRole: ROLES.OWNER, createdAt: '2026-09-01T11:30:00Z' },
-  { id: 'cashin-co-002', amount: 3900, reason: 'Custom-order payment CO-20250830-0002', createdBy: 'owner', createdByRole: ROLES.OWNER, createdAt: '2026-08-30T14:20:00Z' },
+  { id: 'cashin-co-001', amount: 1500, reason: 'Custom-order payment CO-20260901-0003', createdBy: 'owner', createdByRole: ROLES.OWNER, createdAt: '2026-09-01T11:30:00Z' },
+  { id: 'cashin-co-002', amount: 3900, reason: 'Custom-order payment CO-20260830-0002', createdBy: 'owner', createdByRole: ROLES.OWNER, createdAt: '2026-08-30T14:20:00Z' },
 ];
 for (const seed of SEED_CASH_IN) {
   if (LEDGER.some((r) => r.id === seed.id)) continue;
@@ -82,7 +85,7 @@ for (const seed of SEED_CASH_IN) {
     amount: seed.amount,
     referenceType: seed.id.startsWith('cashin-co-') ? 'CUSTOM_ORDER_PAYMENT' : 'SALE',
     referenceId: seed.id.startsWith('cashin-co-')
-      ? `co-${seed.id.slice('cashin-co-'.length).padStart(3, '0')}`
+      ? `pay-co-${seed.id.slice('cashin-co-'.length).padStart(3, '0')}`
       : seed.id.replace('cashin-', 'sale-'),
     reason: seed.reason,
     createdBy: seed.createdBy,
@@ -96,6 +99,149 @@ for (const seed of SEED_CASH_IN) {
   );
 }
 nextSeq = LEDGER.length;
+for (const row of LEDGER) row.sessionDate = toDateOnly(row.createdAt);
+
+const RECONCILIATIONS = [];
+const COUNT_REQUESTS = new Map();
+
+function sumCash(rows) {
+  return rows.reduce((sum, row) => sum + Math.round(row.amount * 100) * (row.type === 'CASH_OUT' ? -1 : 1), 0) / 100;
+}
+
+function fail(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  throw error;
+}
+
+function manualTime(date) {
+  if (!date) return nowIso();
+  const start = cashDayStart(date);
+  if (date > cashBusinessDate()) fail('FUTURE_DATE', 'Cash movements cannot be future dated.');
+  const initial = LEDGER.find((row) => row.type === 'OPENING');
+  if (initial && start < new Date(initial.createdAt)) fail('BEFORE_OPENING', 'Cash movement cannot precede initial setup.');
+  return date === cashBusinessDate() ? nowIso() : start.toISOString();
+}
+
+function decorateCount(row) {
+  const superseded = RECONCILIATIONS.some((entry) => entry.supersedesId === row.id);
+  const stale = row.businessDate !== cashBusinessDate() || row.ledgerSequenceAtCount !== LEDGER.length || RECONCILIATIONS.at(-1)?.id !== row.id;
+  return {
+    ...row,
+    status: row.adjustmentTransactionId ? 'ADJUSTED' : superseded ? 'SUPERSEDED' : row.difference === 0 ? 'MATCHED' : 'UNAPPLIED',
+    canAdjust: row.difference !== 0 && !row.adjustmentTransactionId && !stale && !superseded,
+    stale: !row.adjustmentTransactionId && stale,
+  };
+}
+
+export async function setInitialCash(payload = {}, { actor } = {}) {
+  requireOwner({ actor });
+  await delay(100);
+  if (LEDGER.some((row) => row.type === 'OPENING')) fail('ALREADY_INITIALIZED', 'Initial opening is already recorded. Use reconciliation for corrections.');
+  const amount = normaliseAmount(payload.amount);
+  if (amount === null || amount < 0) fail('INVALID_AMOUNT', 'Opening cash must be zero or greater.');
+  const earliest = LEDGER.length ? LEDGER.reduce((first, row) => row.createdAt < first ? row.createdAt : first, LEDGER[0].createdAt) : nowIso();
+  const date = payload.date || cashBusinessDate(earliest);
+  const createdAt = cashDayStart(date).toISOString();
+  if (createdAt > earliest || date > cashBusinessDate()) fail('INVALID_OPENING_DATE', 'Initial opening must be on or before the first cash movement.');
+  const row = {
+    id: nextId(), type: 'OPENING', amount, referenceType: 'INITIAL_SETUP', referenceId: null,
+    reason: String(payload.reason || 'Initial shop cash').trim(), createdBy: actor.username,
+    createdByRole: actor.role, createdAt, recordedAt: nowIso(), sessionDate: date,
+  };
+  LEDGER.push(row);
+  return cloneRow(row);
+}
+
+export async function getCashReconciliations(filters = {}, { actor } = {}) {
+  requireOwner({ actor });
+  await delay(60);
+  return RECONCILIATIONS.filter((row) => !filters.businessDate || row.businessDate === filters.businessDate)
+    .slice().reverse().map(decorateCount);
+}
+
+export async function saveCashReconciliation(payload = {}, { actor } = {}) {
+  requireOwner({ actor });
+  await delay(120);
+  const physicalCash = normaliseAmount(payload.physicalCash);
+  if (physicalCash === null || physicalCash < 0) fail('INVALID_AMOUNT', 'Physical cash must be zero or greater.');
+  const notes = String(payload.notes || '').trim();
+  const requestKey = payload.idempotencyKey ? `${actor.username}:${payload.idempotencyKey}` : null;
+  const fingerprint = JSON.stringify([physicalCash, notes]);
+  if (requestKey && COUNT_REQUESTS.has(requestKey)) {
+    const previous = COUNT_REQUESTS.get(requestKey);
+    if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'This count request was already used with different values.');
+    return decorateCount(RECONCILIATIONS.find((row) => row.id === previous.id));
+  }
+  if (!LEDGER.some((row) => row.type === 'OPENING')) fail('SETUP_REQUIRED', 'Record initial opening cash before reconciliation.');
+  if (payload.ledgerVersion !== undefined && payload.ledgerVersion !== LEDGER.length) fail('STALE_COUNT', 'Cash changed while counting. Refresh and count again.');
+  const countedAt = nowIso();
+  const expectedCash = getCurrentCash();
+  const businessDate = cashBusinessDate(countedAt);
+  const previous = RECONCILIATIONS.filter((row) => row.businessDate === businessDate).at(-1);
+  const row = {
+    id: `recon-${RECONCILIATIONS.length + 1}`, businessDate, countedAt, expectedCash, physicalCash,
+    difference: Math.round((physicalCash - expectedCash) * 100) / 100,
+    ledgerSequenceAtCount: LEDGER.length, notes, reconciledBy: actor.username,
+    createdAt: countedAt, adjustmentTransactionId: null, supersedesId: previous?.id || null,
+  };
+  RECONCILIATIONS.push(row);
+  if (requestKey) COUNT_REQUESTS.set(requestKey, { id: row.id, fingerprint });
+  return decorateCount(row);
+}
+
+export async function applyCashReconciliation(id, payload = {}, { actor } = {}) {
+  requireOwner({ actor });
+  await delay(120);
+  if (payload.confirmed !== true) fail('CONFIRMATION_REQUIRED', 'Confirm the cash adjustment first.');
+  const reason = validReason(payload.reason);
+  if (!reason) fail('EMPTY_REASON', 'An adjustment reason is required (at least 3 characters).');
+  const row = RECONCILIATIONS.find((entry) => entry.id === id);
+  if (!row) fail('NOT_FOUND', 'Reconciliation not found.');
+  if (row.adjustmentTransactionId) {
+    const adjustment = LEDGER.find((entry) => entry.id === row.adjustmentTransactionId);
+    if (adjustment.reason !== reason) fail('ALREADY_ADJUSTED', 'This reconciliation already has an adjustment.');
+    return { reconciliation: decorateCount(row), adjustment: cloneRow(adjustment) };
+  }
+  if (row.difference === 0) fail('ALREADY_MATCHED', 'Cash matches; no adjustment is needed.');
+  if (!decorateCount(row).canAdjust) fail('STALE_COUNT', 'Cash or the count changed. Save a fresh reconciliation before adjusting.');
+  const createdAt = nowIso();
+  const adjustment = {
+    id: nextId(), type: 'CASH_ADJUSTMENT', amount: row.difference,
+    referenceType: 'RECONCILIATION', referenceId: row.id, reason,
+    createdBy: actor.username, createdByRole: actor.role, createdAt, sessionDate: cashBusinessDate(createdAt),
+  };
+  // No awaits between related writes: one synchronous mock transaction.
+  LEDGER.push(adjustment);
+  row.adjustmentTransactionId = adjustment.id;
+  return { reconciliation: decorateCount(row), adjustment: cloneRow(adjustment) };
+}
+
+export function getCashPeriodSummary(filters = {}, { actor } = {}) {
+  requireOwner({ actor });
+  const [start, end] = cashDateRange(filters);
+  const prior = LEDGER.filter((row) => new Date(row.createdAt) < start);
+  const rows = LEDGER.filter((row) => new Date(row.createdAt) >= start && new Date(row.createdAt) <= end);
+  const opening = sumCash(prior);
+  const total = (type) => sumCash(rows.filter((row) => row.type === type));
+  return {
+    opening, initialOpening: total('OPENING'), cashIn: total('CASH_IN'), cashOut: Math.abs(total('CASH_OUT')),
+    adjustments: total('CASH_ADJUSTMENT'), expected: Math.round((opening + sumCash(rows)) * 100) / 100,
+    from: cashBusinessDate(start), to: cashBusinessDate(end), rows: rows.map(cloneRow),
+  };
+}
+
+export async function getCashSnapshot({ actor } = {}) {
+  requireOwner({ actor });
+  await delay(80);
+  const earliest = LEDGER.length ? LEDGER.reduce((first, row) => row.createdAt < first ? row.createdAt : first, LEDGER[0].createdAt) : nowIso();
+  return {
+    ...getCashPeriodSummary({}, { actor }), currentCash: getCurrentCash(), ledgerVersion: LEDGER.length,
+    initialized: LEDGER.some((row) => row.type === 'OPENING'), suggestedOpeningDate: cashBusinessDate(earliest),
+    entries: LEDGER.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(cloneRow),
+    reconciliations: RECONCILIATIONS.slice().reverse().map(decorateCount),
+  };
+}
 
 function nextId() {
   nextSeq += 1;
@@ -107,24 +253,7 @@ function nowIso() {
 }
 
 function toDateOnly(value) {
-  if (!value) return '';
-  if (typeof value === 'string') {
-    // accept 'YYYY-MM-DD' or ISO
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return '';
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-  if (value instanceof Date) {
-    const y = value.getFullYear();
-    const m = String(value.getMonth() + 1).padStart(2, '0');
-    const day = String(value.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-  return '';
+  return cashBusinessDate(value);
 }
 
 function requireOwner({ actor } = {}) {
@@ -136,9 +265,10 @@ function requireOwner({ actor } = {}) {
 }
 
 function normaliseAmount(value) {
+  if ((typeof value === 'string' && !value.trim()) || value === null || value === undefined || typeof value === 'boolean') return null;
   const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  return n;
+  if (!Number.isFinite(n) || !Number.isSafeInteger(Math.round(n * 100))) return null;
+  return Math.round(n * 100) / 100;
 }
 
 function validReason(reason) {
@@ -160,6 +290,8 @@ export const CASH_REFERENCE_LABELS = Object.freeze({
   SALE: 'Sale',
   CUSTOM_ORDER_PAYMENT: 'Custom order payment',
   MANUAL: 'Manual cash',
+  INITIAL_SETUP: 'Initial opening',
+  RECONCILIATION: 'Reconciliation',
 });
 
 /* -------------------------------------------------------------------------- */
@@ -184,15 +316,10 @@ export async function getCashEntries(_filters = {}) {
 }
 
 /**
- * Current shop-cash balance: sum of all CASH_IN rows minus all CASH_OUT rows.
+ * Current shop cash: initial opening + cash in - cash out + signed adjustments.
  */
 export function getCurrentCash() {
-  return LEDGER.reduce((acc, row) => {
-    const amt = Number(row.amount || 0);
-    if (row.type === 'CASH_IN') return acc + amt;
-    if (row.type === 'CASH_OUT') return acc - amt;
-    return acc;
-  }, 0);
+  return sumCash(LEDGER);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -221,7 +348,7 @@ export async function addCashIn(payload = {}, { actor } = {}) {
 
   const createdBy = actor?.username || 'unknown';
   const createdByRole = actor?.role || ROLES.OWNER;
-  const createdAt = nowIso();
+  const createdAt = manualTime(payload.date);
   const sessionDate = toDateOnly(createdAt);
 
   const row = {
@@ -262,7 +389,7 @@ export async function addCashOut(payload = {}, { actor } = {}) {
 
   const createdBy = actor?.username || 'unknown';
   const createdByRole = actor?.role || ROLES.OWNER;
-  const createdAt = nowIso();
+  const createdAt = manualTime(payload.date);
   const sessionDate = toDateOnly(createdAt);
 
   const row = {

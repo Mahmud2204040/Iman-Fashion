@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
+import { LocaleProvider } from './contexts/LocaleContext.jsx';
 import './styles/global.css';
 // tokens.css is imported via global.css (see @import at top of that file)
 
@@ -19,9 +20,11 @@ import './styles/global.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </LocaleProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

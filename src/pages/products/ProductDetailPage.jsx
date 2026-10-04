@@ -1,3 +1,4 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * ProductDetailPage — Phase 8.
  *
@@ -8,12 +9,11 @@
  * The adjust-stock form enforces:
  *   - non-zero delta
  *   - required reason (free text, 120 char limit)
- *   - reason preset chips for convenience (OPENING_STOCK,
- *     sold, damaged, return, custom-order, transfer) — but
- *     the underlying value is free text.
+ *   - OPENING_STOCK as the only structured reason shortcut;
+ *     all other reasons are entered as free text.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 
 import {
   Badge,
@@ -27,26 +27,20 @@ import {
 } from '../../components/common/index.js';
 import { ProductIcon } from '../../components/icons/DashboardIcon.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import {
   adjustStock,
   getProductById,
   getStockHistory,
+  updateProduct,
 } from '../../services/products/productService.js';
-import { formatCurrency, timeAgo } from '../../utils/format.js';
+import { formatCount, formatCurrency, timeAgo } from '../../utils/format.js';
 import styles from './ProductDetailPage.module.css';
 
-const REASON_PRESETS = [
-  'OPENING_STOCK',
-  'Sold to retail customer',
-  'Sold via sale',
-  'Reserved for custom order',
-  'Returned / exchange',
-  'Damaged in shop',
-  'Stock count correction',
-  'Transfer between locations',
-];
+const REASON_PRESETS = ['OPENING_STOCK'];
 
 export default function ProductDetailPage() {
+  const { t } = useLocale();
   const { id } = useParams();
   const { user, role } = useAuth();
   const isOwner = role === 'OWNER';
@@ -57,10 +51,12 @@ export default function ProductDetailPage() {
   const [error, setError] = useState('');
 
   const [delta, setDelta] = useState('1');
-  const [reason, setReason] = useState('Sold to retail customer');
+  const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDraft, setEditDraft] = useState({});
 
   const [pendingSign, setPendingSign] = useState(null); // '+' | '-'
 
@@ -90,14 +86,30 @@ export default function ProductDetailPage() {
     return (
       <main className={styles.page} aria-busy="true">
         <div className={styles.loading}>
-          <Spinner /> <span>Loading product…</span>
+          <Spinner /> <span><T>Loading product…</T></span>
         </div>
       </main>
     );
   }
 
   if (error || !product) {
-    return <Navigate to="/products" replace />;
+    return <main className={styles.page}><p role="alert"><T>{error || 'Product not found.'}</T></p><Link to="/products"><T>← All products</T></Link><Button onClick={reload}><T>Retry</T></Button></main>;
+  }
+
+  async function saveDetails(event) {
+    event.preventDefault(); setFormError(''); setBusy(true);
+    try {
+      const updated = await updateProduct(id, editDraft, { actor: { username: user?.username, role } });
+      setProduct(updated); setEditOpen(false);
+    } catch (err) { setFormError(err?.message || 'Could not save product.'); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleActive() {
+    setFormError(''); setBusy(true);
+    try { setProduct(await updateProduct(id, { isActive: !product.isActive }, { actor: { username: user?.username, role } })); }
+    catch (err) { setFormError(err?.message || 'Could not change product status.'); }
+    finally { setBusy(false); }
   }
 
   const currentSign = pendingSign === '-' ? -1 : pendingSign === '+' ? 1 : 1;
@@ -128,20 +140,28 @@ export default function ProductDetailPage() {
 
   return (
     <main className={styles.page}>
-      <Link to="/products" className={styles.backLink}>
+      <Link to="/products" className={styles.backLink}><T>
         ← All products
-      </Link>
+      </T></Link>
 
       <PageHeader
-        eyebrow={product.category || 'Inventory'}
+        eyebrow={product.category || 'Uncategorized'}
         title={product.name}
-        description={`${product.sku} · updated ${timeAgo(product.updatedAt)}`}
+        description={`${product.id} · ${t('updated')} ${timeAgo(product.updatedAt)}`}
         actions={
           <Badge tone={product.isActive ? 'success' : 'neutral'}>
             {product.isActive ? 'Active' : 'Inactive'}
           </Badge>
         }
       />
+      {isOwner ? <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}><Button variant="secondary" onClick={() => { setEditDraft({ name: product.name, description: product.description || '', purchasePrice: product.purchasePrice == null ? '' : String(product.purchasePrice) }); setEditOpen((open) => !open); }}>{editOpen ? 'Close edit' : 'Edit product'}</Button><Button variant="ghost" disabled={busy} onClick={toggleActive}>{product.isActive ? 'Deactivate' : 'Activate'}</Button></div> : null}
+      {formError ? <p role="alert" className={styles.formError}><T>{formError}</T></p> : null}
+      {editOpen ? <Card><h2 className={styles.sectionTitle}><T>Product details</T></h2><form onSubmit={saveDetails} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12 }}>
+        <label><T>Name</T><input required value={editDraft.name} onChange={(event) => setEditDraft((current) => ({ ...current, name: event.target.value }))} /></label>
+        <label><T>Purchase cost (৳)</T><input type="number" min="0" step="0.01" value={editDraft.purchasePrice} onChange={(event) => setEditDraft((current) => ({ ...current, purchasePrice: event.target.value }))} /></label>
+        <label><T>Notes</T><input value={editDraft.description} onChange={(event) => setEditDraft((current) => ({ ...current, description: event.target.value }))} /></label>
+        <div style={{ alignSelf: 'end' }}><Button type="submit" disabled={busy}><T>Save changes</T></Button></div>
+      </form></Card> : null}
 
       <div className={styles.summary}>
         <Card className={styles.stockCard}>
@@ -149,92 +169,98 @@ export default function ProductDetailPage() {
             <ProductIcon size={20} strokeWidth={1.7} />
           </div>
           <div className={styles.stockMeta}>
-            <span className={styles.stockLabel}>Current stock</span>
+            <span className={styles.stockLabel}><T>Current stock</T></span>
             <span className={styles.stockNumber}>{totalStock}</span>
-            <span className={styles.stockFootnote}>
-              Across {history.length} ledger {history.length === 1 ? 'entry' : 'entries'}
+            <span className={styles.stockFootnote}><T>
+              Across </T>{formatCount(history.length, 'ledger entry', 'ledger entries', 'স্টক এন্ট্রি')}
             </span>
           </div>
         </Card>
 
         <Card className={styles.priceCard}>
-          <span className={styles.cellLabel}>Sale price</span>
-          <strong className={styles.priceValue}>{formatCurrency(product.price)}</strong>
-          <span className={styles.cellLabel}>SKU</span>
-          <span className={styles.sku}>{product.sku}</span>
+          <span className={styles.cellLabel}><T>Purchase cost</T></span>
+          <strong className={styles.priceValue}>
+            {product.purchasePrice == null ? t('Not recorded') : formatCurrency(product.purchasePrice)}
+          </strong>
+          <span className={styles.cellLabel}><T>Product ID</T></span>
+          <span className={styles.sku}>{product.id}</span>
         </Card>
 
         <Card className={styles.metaCard}>
-          <span className={styles.cellLabel}>Created</span>
+          <span className={styles.cellLabel}><T>Created</T></span>
           <strong>{timeAgo(product.createdAt)}</strong>
-          <span className={styles.cellLabel}>By</span>
+          <span className={styles.cellLabel}><T>By</T></span>
           <span className={styles.cellValue}>{product.createdBy || 'unknown'}</span>
         </Card>
       </div>
 
       {product.description ? (
         <Card>
-          <h2 className={styles.sectionTitle}>Description</h2>
+          <h2 className={styles.sectionTitle}><T>Notes</T></h2>
           <p className={styles.desc}>{product.description}</p>
         </Card>
       ) : null}
 
       {isOwner ? (
         <Card className={styles.adjustCard}>
-          <h2 className={styles.sectionTitle}>Adjust stock</h2>
-          <p className={styles.adjustHint}>
-            Quantity change is signed: <strong>+</strong> adds to stock,
-            <strong> −</strong> removes. A reason is required (free text).{' '}
-            <code>OPENING_STOCK</code> is the only structured shortcut.
-          </p>
+          <h2 className={styles.sectionTitle}><T>Adjust stock</T></h2>
+          <p className={styles.adjustHint}><T>
+            Quantity change is signed: </T><strong>+</strong><T> adds to stock,
+            </T><strong> −</strong><T> removes. A reason is required (free text).</T>{' '}
+            <code><T>OPENING_STOCK</T></code><T> is the only structured shortcut.
+          </T></p>
 
-          <div className={styles.signRow} role="tablist" aria-label="Adjustment direction">
+          <div className={styles.signRow} role="tablist" aria-label={t('Adjustment direction')}>
             <button
               type="button"
               role="tab"
               aria-selected={pendingSign !== '-'}
               className={[styles.signBtn, pendingSign !== '-' ? styles.signActive : ''].join(' ')}
               onClick={() => setPendingSign('+')}
-            >
+            ><T>
               + Add stock
-            </button>
+            </T></button>
             <button
               type="button"
               role="tab"
               aria-selected={pendingSign === '-'}
               className={[styles.signBtn, pendingSign === '-' ? styles.signActive : ''].join(' ')}
               onClick={() => setPendingSign('-')}
-            >
+            ><T>
               − Remove stock
-            </button>
+            </T></button>
           </div>
 
           <div className={styles.adjustGrid}>
             <FormField label="Quantity" htmlFor="adj-qty">
-              <Input
-                id="adj-qty"
-                type="number"
-                inputMode="numeric"
-                min="1"
-                step="1"
-                value={delta}
-                onChange={(e) => setDelta(e.target.value)}
-                required
-              />
+              {(controlProps) => (
+                <Input
+                  {...controlProps}
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  step="1"
+                  value={delta}
+                  onChange={(e) => setDelta(e.target.value)}
+                  required
+                />
+              )}
             </FormField>
             <FormField label="Reason" htmlFor="adj-reason" required>
-              <Input
-                id="adj-reason"
-                placeholder="Free text — required"
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                maxLength={120}
-                required
-              />
+              {(controlProps) => (
+                <Input
+                  {...controlProps}
+                  placeholder="Free text — required"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={120}
+                  required
+                />
+              )}
             </FormField>
           </div>
 
-          <div className={styles.presetRow} aria-label="Reason presets">
+          <div className={styles.presetRow} aria-label={t('Reason presets')}>
             {REASON_PRESETS.map((preset) => (
               <button
                 key={preset}
@@ -245,31 +271,33 @@ export default function ProductDetailPage() {
                 ].join(' ')}
                 onClick={() => setReason(preset)}
               >
-                {preset}
+                {t(preset)}
               </button>
             ))}
           </div>
 
-          <FormField label="Note" htmlFor="adj-note" hint="Optional — added to the ledger entry.">
-            <Textarea
-              id="adj-note"
-              rows={2}
-              placeholder="e.g. Walk-in customer 2025-09-14"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
+          <FormField label="Note" htmlFor="adj-note" helper="Optional — added to the ledger entry.">
+            {(controlProps) => (
+              <Textarea
+                {...controlProps}
+                rows={2}
+                placeholder="e.g. Opening stock count"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            )}
           </FormField>
 
           <div className={styles.preview}>
-            <span>
-              Change:{' '}
+            <span><T>
+              Change:</T>{' '}
               <strong className={pendingSign === '-' ? styles.previewNeg : styles.previewPos}>
                 {pendingSign === '-' ? '−' : '+'}
                 {Math.abs(pendingDelta || Number(delta) || 0)}
               </strong>
             </span>
-            <span>
-              Projected stock:{' '}
+            <span><T>
+              Projected stock:</T>{' '}
               <strong className={wouldGoNegative ? styles.previewNeg : styles.previewPos}>
                 {projectedStock}
               </strong>
@@ -278,7 +306,7 @@ export default function ProductDetailPage() {
 
           {formError ? (
             <p className={styles.formError} role="alert">
-              {formError}
+              <T>{formError}</T>
             </p>
           ) : null}
 
@@ -306,16 +334,16 @@ export default function ProductDetailPage() {
                 performAdjust();
               }}
             >
-              {busy ? 'Saving…' : `Apply ${pendingSign === '-' ? '−' : '+'}${Math.abs(Number(delta) || 0)} to stock`}
+              {busy ? t('Saving…') : `${t('Apply')} ${pendingSign === '-' ? '−' : '+'}${Math.abs(Number(delta) || 0)} ${t('to stock')}`}
             </Button>
           </div>
         </Card>
       ) : null}
 
       <Card>
-        <h2 className={styles.sectionTitle}>Stock history</h2>
+        <h2 className={styles.sectionTitle}><T>Stock history</T></h2>
         {history.length === 0 ? (
-          <p className={styles.empty}>No stock changes yet.</p>
+          <p className={styles.empty}><T>No stock changes yet.</T></p>
         ) : (
           <ul className={styles.history}>
             {history.map((h) => (
@@ -330,10 +358,10 @@ export default function ProductDetailPage() {
                   {h.delta}
                 </span>
                 <div className={styles.histMain}>
-                  <strong>{h.reason}</strong>
+                  <strong>{h.reason === 'OPENING_STOCK' ? t('OPENING_STOCK') : h.reason}</strong>
                   {h.note ? <span className={styles.histNote}>{h.note}</span> : null}
                   <span className={styles.histMeta}>
-                    {timeAgo(h.createdAt)} · by {h.createdBy || 'unknown'}
+                    {timeAgo(h.createdAt)}<T> · by </T>{h.createdBy || 'unknown'}
                   </span>
                 </div>
               </li>

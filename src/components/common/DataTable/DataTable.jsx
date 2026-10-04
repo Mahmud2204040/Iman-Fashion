@@ -1,6 +1,7 @@
 import styles from './DataTable.module.css';
 import Spinner from '../Spinner/Spinner.jsx';
 import EmptyState from '../EmptyState/EmptyState.jsx';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 
 /**
  * Generic DataTable.
@@ -19,16 +20,22 @@ import EmptyState from '../EmptyState/EmptyState.jsx';
 function DataTable({
   columns = [],
   data = [],
+  rows,
   rowKey = 'id',
+  getRowKey,
   loading = false,
   emptyTitle = 'No data',
+  emptyLabel,
   emptyDescription,
   emptyAction = null,
   mobileRenderer = null,
   className = '',
   ...rest
 }) {
+  const { t } = useLocale();
+  const displayRows = rows ?? data;
   const getKey = (row, index) => {
+    if (typeof getRowKey === 'function') return getRowKey(row, index) || index;
     if (typeof rowKey === 'function') return rowKey(row) || index;
     return row[rowKey] ?? index;
   };
@@ -50,12 +57,12 @@ function DataTable({
     );
   }
 
-  if (!data || data.length === 0) {
+  if (!displayRows || displayRows.length === 0) {
     return (
       <div className={[styles.wrap, className].filter(Boolean).join(' ')}>
         <EmptyState
-          title={emptyTitle}
-          description={emptyDescription}
+          title={t(emptyLabel || emptyTitle)}
+          description={typeof emptyDescription === 'string' ? t(emptyDescription) : emptyDescription}
           action={emptyAction}
         />
       </div>
@@ -78,13 +85,13 @@ function DataTable({
                     width: col.width,
                   }}
                 >
-                  {col.header}
+                  {typeof col.header === 'string' ? t(col.header) : col.header}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {data.map((row, i) => (
+            {displayRows.map((row, i) => (
               <tr key={getKey(row, i)} className={styles.tr}>
                 {columns.map((col) => (
                   <td
@@ -103,7 +110,7 @@ function DataTable({
 
       {/* Mobile */}
       <ul className={styles.cardList}>
-        {data.map((row, i) => {
+        {displayRows.map((row, i) => {
           const key = getKey(row, i);
           return (
             <li key={key} className={styles.card}>
@@ -115,7 +122,7 @@ function DataTable({
                     .filter((c) => !c.mobileHidden)
                     .map((c) => (
                       <div key={c.key} className={styles.cardRow}>
-                        <dt className={styles.cardLabel}>{c.header}</dt>
+                        <dt className={styles.cardLabel}>{typeof c.header === 'string' ? t(c.header) : c.header}</dt>
                         <dd className={styles.cardValue}>{renderCell(c, row)}</dd>
                       </div>
                     ))}

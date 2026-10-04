@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 
 import { filterNavByRole, isSubGroup } from '../../../constants/navigation.js';
 import { useAuth } from '../../../hooks/useAuth.js';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 import styles from './BottomNav.module.css';
 
 /**
@@ -20,6 +21,7 @@ import styles from './BottomNav.module.css';
  */
 function BottomNav() {
   const { role } = useAuth();
+  const { t } = useLocale();
   const groups = filterNavByRole(role);
 
   // Pick the first leaf per group. If the first item is a sub-group, fall
@@ -59,7 +61,7 @@ function BottomNav() {
                 <span className={styles.iconWrap} aria-hidden="true">
                   <Icon size={20} strokeWidth={1.75} />
                 </span>
-                <span className={styles.label}>{item.label}</span>
+                <span className={styles.label}>{t(item.label)}</span>
               </NavLink>
             </li>
           );

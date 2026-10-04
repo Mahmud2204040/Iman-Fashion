@@ -14,6 +14,7 @@
 // open in a browser.
 
 import { readFileSync } from 'node:fs';
+import { webcrypto } from 'node:crypto';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +50,8 @@ const ctx = vm.createContext({
   setTimeout, clearTimeout,
   Promise,
   Error,
+  crypto: webcrypto,
+  TextEncoder,
   window: { localStorage: localStore, sessionStorage: sessionStore },
   JSON, Math, Date, Object,
 });
@@ -59,11 +62,12 @@ const modules = [
   'src/constants/storage.js',
   'src/mock/users.js',
   'src/services/delay.js',
+  'src/services/users/userService.js',
   'src/services/auth/authService.js',
 ];
 for (const m of modules) vm.runInContext(loadModule(m, ctx), ctx, { filename: m });
 
-const { login, logout, getCurrentUser } = ctx;
+const { login, logout, getCurrentUser, createEmployee, updateEmployee, getEmployees, setOwnPassword, setEmployeePassword } = ctx;
 
 // ---- Test helpers ----
 let pass = 0;
@@ -147,6 +151,52 @@ await test('tampered JSON in storage → null (defensive)', async () => {
   ctx.window.localStorage.setItem('ni-fashion.session', '{not-json');
   const u = await getCurrentUser();
   expect(u === null, 'expected null for tampered storage');
+});
+
+await test('owner creates an employee with its own password', async () => {
+  const actor = { role: 'OWNER' };
+  const created = await createEmployee({ username: 'qa.employee', password: 'test-pass-2026' }, { actor });
+  expect(created.isActive && created.role === 'EMPLOYEE', 'new employee should be active');
+  const saved = ctx.window.localStorage.getItem('ni-fashion.mock-accounts');
+  const credentials = ctx.window.localStorage.getItem('ni-fashion.mock-credential-hashes.v1');
+  expect(saved?.includes('qa.employee') && !saved.includes('test-pass-2026'), 'store metadata, never a password');
+  expect(credentials?.includes('qa.employee') && !credentials.includes('test-pass-2026'), 'store only a password verifier');
+  const signedIn = await login({ username: 'qa.employee', password: 'test-pass-2026' });
+  expect(signedIn.role === 'EMPLOYEE', 'new account should sign in');
+});
+
+await test('owner can reset an employee password', async () => {
+  await setEmployeePassword('qa.employee', 'new-pass-2026', { actor: { role: 'OWNER' } });
+  let oldRejected = false;
+  try { await login({ username: 'qa.employee', password: 'test-pass-2026' }); } catch { oldRejected = true; }
+  expect(oldRejected, 'old password must stop working');
+  expect((await login({ username: 'qa.employee', password: 'new-pass-2026' })).role === 'EMPLOYEE', 'new password must work');
+});
+
+await test('inactive employee cannot sign in or restore an existing session', async () => {
+  await updateEmployee('qa.employee', { isActive: false }, { actor: { role: 'OWNER' } });
+  expect(await getCurrentUser() === null, 'inactive account session must be invalidated');
+  let code;
+  try { await login({ username: 'qa.employee', password: '1234' }); } catch (error) { code = error.code; }
+  expect(code === 'INVALID_CREDENTIALS', `expected invalid credentials, got ${code}`);
+});
+
+await test('renaming built-in employee does not re-create old username', async () => {
+  const actor = { role: 'OWNER' };
+  await updateEmployee('employee', { username: 'sales.team' }, { actor });
+  const names = (await getEmployees({ actor })).map((row) => row.username);
+  expect(names.includes('sales.team') && !names.includes('employee'), 'old username must not revive');
+});
+
+await test('owner changes own password with current-password check', async () => {
+  let rejected = false;
+  try { await setOwnPassword('wrong', 'owner-pass-2026', { actor: { username: 'owner', role: 'OWNER' } }); } catch { rejected = true; }
+  expect(rejected, 'wrong current password must be rejected');
+  await setOwnPassword('1234', 'owner-pass-2026', { actor: { username: 'owner', role: 'OWNER' } });
+  let oldRejected = false;
+  try { await login({ username: 'owner', password: '1234' }); } catch { oldRejected = true; }
+  expect(oldRejected, 'old owner password must stop working');
+  expect((await login({ username: 'owner', password: 'owner-pass-2026' })).role === 'OWNER', 'new owner password must work');
 });
 
 console.log(`\n${pass} passed, ${fail} failed.`);

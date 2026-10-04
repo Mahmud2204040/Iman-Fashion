@@ -107,3 +107,20 @@
   color: #b91c1c;
   font-weight: var(--font-weight-semibold);
 }
+
+/* Dashboard V2 shares the reference's restrained warm surface. */
+.card {
+  border-color: var(--nf-border, #e4e0d6);
+  border-radius: 16px;
+  background: var(--nf-surface, #fffdf8);
+  box-shadow: none;
+}
+.title { color: var(--nf-ink, #171817); }
+.subtitle, .hint { color: var(--nf-muted, #74786f); }
+.icon { background: #eff9d9; color: #405426; }
+.textarea {
+  border-color: var(--nf-border, #e4e0d6);
+  background: #fff;
+}
+.card button { background: var(--nf-lime, #c7f36b); color: var(--nf-ink, #171817); }
+.card button:disabled { opacity: .48; }

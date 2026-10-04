@@ -10,6 +10,7 @@
   width: 100%;
   animation: fadeIn 0.25s ease-out;
 }
+.newPurchase{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:9px;background:#ba8544;color:#fff;text-decoration:none;font-size:13px;font-weight:800;box-shadow:0 6px 16px #8b5c2b25}.newPurchase:hover{background:#a97437}.newPurchase:focus-visible{outline:3px solid #a9cbed;outline-offset:3px}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

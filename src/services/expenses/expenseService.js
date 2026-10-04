@@ -7,7 +7,7 @@
  *   - Owner-only (employees must not see or manage).
  *   - Custom categories owned by the owner (no hardcoded enum, per §58).
  *   - Fields (REQUIREMENTS §57):
- *       id, category_id, amount, expense_date, description, notes,
+ *       id, category_id, amount, expense_date, description,
  *       created_by, created_at, updated_at
  *   - Date required. Description optional.
  *   - Modal-based add form, per UX notes in §56.
@@ -43,7 +43,6 @@ const EXPENSES = [
     amount: 3500,
     expenseDate: '2026-08-25',
     description: 'August electricity bill',
-    notes: 'Auto-debit from bank',
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
     createdAt: '2026-08-25T18:00:00Z',
@@ -56,7 +55,6 @@ const EXPENSES = [
     amount: 18000,
     expenseDate: '2026-09-01',
     description: 'September rent',
-    notes: '',
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
     createdAt: '2026-09-01T10:00:00Z',
@@ -69,7 +67,6 @@ const EXPENSES = [
     amount: 850,
     expenseDate: '2026-09-04',
     description: 'Delivery to Gulshan',
-    notes: '',
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
     createdAt: '2026-09-04T14:30:00Z',
@@ -213,7 +210,6 @@ export async function createExpense(payload = {}, { actor } = {}) {
   }
 
   const description = String(payload.description || '').trim();
-  const notes = String(payload.notes || '').trim();
 
   const createdBy = actor?.username || 'unknown';
   const createdByRole = actor?.role || ROLES.OWNER;
@@ -226,7 +222,6 @@ export async function createExpense(payload = {}, { actor } = {}) {
     amount,
     expenseDate,
     description,
-    notes,
     createdBy,
     createdByRole,
     createdAt: nowIso(),
@@ -237,6 +232,34 @@ export async function createExpense(payload = {}, { actor } = {}) {
   // INTENTIONALLY NO cash-ledger side-effect.
   // REQUIREMENTS §60 / §D9 / DATABASE_PLAN §40.
   return clone(record);
+}
+
+export async function updateExpense(id, patch = {}, { actor } = {}) {
+  requireOwner({ actor });
+  await delay(120);
+  const index = EXPENSES.findIndex((expense) => expense.id === id);
+  if (index < 0) {
+    const error = new Error('Expense not found.');
+    error.code = 'NOT_FOUND';
+    throw error;
+  }
+  const current = EXPENSES[index];
+  const categoryId = String(patch.categoryId ?? current.categoryId);
+  const category = CATEGORIES.find((row) => row.id === categoryId && row.isActive);
+  const amount = normaliseAmount(patch.amount ?? current.amount);
+  const expenseDate = toDateOnly(patch.expenseDate ?? current.expenseDate);
+  if (!category || amount === null || !expenseDate) {
+    const error = new Error('Choose an active category, positive amount and valid date.');
+    error.code = 'INVALID_EXPENSE';
+    throw error;
+  }
+  const updated = {
+    ...current, categoryId, categoryName: category.name, amount, expenseDate,
+    description: String(patch.description ?? current.description ?? '').trim(),
+    updatedBy: actor?.username || 'unknown', updatedAt: nowIso(),
+  };
+  EXPENSES[index] = updated;
+  return clone(updated);
 }
 
 /* -------------------------------------------------------------------------- */

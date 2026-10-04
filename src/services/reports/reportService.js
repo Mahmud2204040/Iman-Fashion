@@ -22,12 +22,13 @@ import { ROLES } from '../../constants/roles.js';
 
 import { getSales } from '../sales/salesService.js';
 import { getCustomOrders } from '../customOrders/customOrderService.js';
-import { getCustomers } from '../customers/customerService.js';
+import { getCustomers, getCustomerChildren } from '../customers/customerService.js';
 import { getProducts, getStockHistory } from '../products/productService.js';
 import { getPurchases } from '../purchases/purchaseService.js';
 import { getRawMaterials } from '../rawMaterials/rawMaterialService.js';
 import { getExpenses } from '../expenses/expenseService.js';
-import { getCashEntries } from '../cash/cashService.js';
+import { getCashPeriodSummary, getCashReconciliations } from '../cash/cashService.js';
+import { cashBusinessDate, cashDateRange } from '../../utils/cashDate.js';
 
 /* -------------------------------------------------------------------------- */
 /* Role guard                                                                   */
@@ -49,37 +50,6 @@ function requireOwner({ actor, action = 'view report' } = {}) {
 /* Date helpers                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function startOfDay(d) {
-  const out = new Date(d);
-  out.setHours(0, 0, 0, 0);
-  return out;
-}
-function endOfDay(d) {
-  const out = new Date(d);
-  out.setHours(23, 59, 59, 999);
-  return out;
-}
-function startOfWeek(d) {
-  const out = startOfDay(d);
-  const dow = out.getDay();
-  out.setDate(out.getDate() - dow);
-  return out;
-}
-function startOfMonth(d) {
-  const out = startOfDay(d);
-  out.setDate(1);
-  return out;
-}
-function startOfYear(d) {
-  const out = startOfDay(d);
-  out.setMonth(0, 1);
-  return out;
-}
-function parseDateOnly(s, fallback) {
-  if (!s) return fallback;
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? fallback : d;
-}
 function isoToDate(iso) {
   if (!iso) return null;
   const d = new Date(iso);
@@ -90,27 +60,7 @@ function isoToDate(iso) {
  * Resolve a filter spec to a concrete [start, end] window.
  */
 export function resolveRange(filters = {}, now = new Date()) {
-  const range = filters.range || 'today';
-  const today = now;
-  switch (range) {
-    case 'today':
-      return [startOfDay(today), endOfDay(today)];
-    case 'week':
-      return [startOfWeek(today), endOfDay(today)];
-    case 'month':
-      return [startOfMonth(today), endOfDay(today)];
-    case 'year':
-      return [startOfYear(today), endOfDay(today)];
-    case 'custom': {
-      const start = startOfDay(
-        parseDateOnly(filters.start, startOfDay(today)),
-      );
-      const end = endOfDay(parseDateOnly(filters.end, endOfDay(today)));
-      return start > end ? [end, start] : [start, end];
-    }
-    default:
-      return [startOfDay(today), endOfDay(today)];
-  }
+  return cashDateRange(filters, now);
 }
 
 function inRange(iso, [start, end]) {
@@ -121,7 +71,7 @@ function inRange(iso, [start, end]) {
 
 function ymKey(d) {
   if (!d) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return cashBusinessDate(d).slice(0, 7);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -218,7 +168,6 @@ export async function getCustomOrderStatusCounts(filters = {}, { actor } = {}) {
   const orders = await getCustomOrders();
   const counts = {
     PENDING: 0,
-    IN_PROGRESS: 0,
     READY: 0,
     DELIVERED: 0,
     CANCELLED: 0,
@@ -302,6 +251,7 @@ export async function getInventoryCurrent({ actor } = {}) {
       name: p.name,
       category: p.category,
       stock: Number(p.stock || 0),
+      isActive: p.isActive,
       price: Number(p.price || 0),
       stockValue: Number(p.stock || 0) * Number(p.price || 0),
     }));
@@ -346,15 +296,18 @@ export async function getCustomerListReport({ actor } = {}) {
   requireOwner({ actor });
   await delay(140);
   const customers = await getCustomers();
-  return customers.map((c) => ({
-    id: c.id,
-    name: c.name,
-    phone: c.phone,
-    initialClass: c.initialClass,
-    currentClass: c.currentClass,
-    isActive: c.isActive,
-    createdBy: c.createdBy,
-    createdAt: c.createdAt,
+  return Promise.all(customers.map(async (c) => {
+    const children = await getCustomerChildren(c.id);
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      initialClass: children.map((child) => child.initialClass).join(', '),
+      currentClass: children.map((child) => child.currentClass).join(', '),
+      isActive: c.isActive,
+      createdBy: c.createdBy,
+      createdAt: c.createdAt,
+    };
   }));
 }
 
@@ -369,7 +322,7 @@ export async function getSupplierPurchasesReport(filters = {}, { actor } = {}) {
   const purchases = await getPurchases();
   const rows = [];
   for (const p of purchases) {
-    if (!inRange(p.createdAt, window)) continue;
+    if (!inRange(p.orderedAt || p.createdAt, window)) continue;
     const paid = (p.payments || []).reduce(
       (sum, pay) => sum + Number(pay.amount || 0),
       0,
@@ -384,7 +337,7 @@ export async function getSupplierPurchasesReport(filters = {}, { actor } = {}) {
       receivedAt: p.receivedAt,
       total: Number(p.total || 0),
       paid,
-      due: Math.max(Number(p.total || 0) - paid, 0),
+      due: p.status === 'CANCELLED' ? 0 : Math.max(Number(p.total || 0) - paid, 0),
       createdBy: p.createdBy,
       createdAt: p.createdAt,
     });
@@ -443,7 +396,7 @@ export async function getSupplierWiseTotals({ actor } = {}) {
     cur.purchases += 1;
     cur.total += Number(p.total || 0);
     cur.paid += paid;
-    cur.due += Math.max(Number(p.total || 0) - paid, 0);
+    if (p.status !== 'CANCELLED') cur.due += Math.max(Number(p.total || 0) - paid, 0);
     bySupplier.set(k, cur);
   }
   return Array.from(bySupplier.values()).sort((a, b) => b.total - a.total);
@@ -469,7 +422,6 @@ export async function getSupplierPaymentHistory(filters = {}, { actor } = {}) {
         note: pay.note,
         createdBy: pay.createdBy,
         createdAt: pay.createdAt,
-        cashOutId: pay.cashOutId || null,
       });
     }
   }
@@ -560,7 +512,7 @@ export async function getExpensesYearly({ actor } = {}) {
   for (const e of expenses) {
     const d = new Date(e.expenseDate);
     if (Number.isNaN(d.getTime())) continue;
-    const key = String(d.getFullYear());
+    const key = cashBusinessDate(d).slice(0, 4);
     map.set(key, (map.get(key) || 0) + Number(e.amount || 0));
   }
   return Array.from(map.entries())
@@ -601,69 +553,50 @@ export async function getExpensesByCategory(filters = {}, { actor } = {}) {
 /**
  * Opening cash balance for the window.
  *
- * Per Phase 12 cleanup the cash module has no opening-balance record
- * (the "opening cash is derived from previous closing" rule was removed
- * by owner override). This returns 0 with a marker; the page surfaces
- * the note so the owner isn't confused by an apparently-zero opening.
+ * Derived from all movements before the selected shop-local period.
  */
-export async function getCashOpening(_filters = {}, { actor } = {}) {
+export async function getCashOpening(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(60);
   return {
-    opening: 0,
+    opening: getCashPeriodSummary(filters, { actor }).opening,
     derivedFrom: 'closing-balance',
-    note: 'No manual opening entry recorded. Cash position is the running total of all CASH_IN and CASH_OUT rows.',
+    note: 'Opening is carried forward from all earlier cash movements (Asia/Dhaka).',
   };
 }
 
 export async function getCashInReport(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(120);
-  const window = resolveRange(filters);
-  const all = await getCashEntries();
-  return all
-    .filter((r) => r.type === 'CASH_IN' && inRange(r.createdAt, window))
+  return getCashPeriodSummary(filters, { actor }).rows
+    .filter((r) => r.type === 'CASH_IN')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function getCashOutReport(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(120);
-  const window = resolveRange(filters);
-  const all = await getCashEntries();
-  return all
-    .filter((r) => r.type === 'CASH_OUT' && inRange(r.createdAt, window))
+  return getCashPeriodSummary(filters, { actor }).rows
+    .filter((r) => r.type === 'CASH_OUT')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function getCashAdjustmentsReport(_filters, { actor } = {}) {
+export async function getCashAdjustmentsReport(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(40);
   return {
-    rows: [],
-    note: 'No cash-side adjustments. Stock adjustments are tracked under Inventory > Stock Adjustments.',
+    rows: getCashPeriodSummary(filters, { actor }).rows.filter((row) => row.type === 'CASH_ADJUSTMENT'),
+    reconciliations: (await getCashReconciliations({}, { actor })).filter((row) => inRange(row.countedAt, cashDateRange(filters))),
+    note: 'Counts are saved even when cash matches. Only explicitly applied adjustments change cash.',
   };
 }
 
 export async function getCashExpected(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(120);
-  const window = resolveRange(filters);
-  const all = await getCashEntries();
-  const inWindow = all.filter((r) => inRange(r.createdAt, window));
-  const cashIn = inWindow
-    .filter((r) => r.type === 'CASH_IN')
-    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
-  const cashOut = inWindow
-    .filter((r) => r.type === 'CASH_OUT')
-    .reduce((sum, r) => sum + Number(r.amount || 0), 0);
   return {
-    range: filters.range || 'today',
-    opening: 0,
-    cashIn,
-    cashOut,
-    expected: cashIn - cashOut,
-    note: 'Opening is treated as zero per current cash policy. Add cash-in / cash-out entries to track movement.',
+    ...getCashPeriodSummary(filters, { actor }),
+    note: 'Closing = carried opening + initial setup in period + cash in − cash out + signed adjustments. Dates use Asia/Dhaka.',
   };
 }
 
@@ -674,16 +607,10 @@ export async function getCashExpected(filters = {}, { actor } = {}) {
 /**
  * Profit by period.
  *
- * Per REQUIREMENTS.md §77-78:
- *   - Profit = revenue - cost of goods sold - expenses
- *   - COGS is only available when each sale line carries a
- *     purchase_price; the sales flow currently does NOT capture this,
- *     so the report:
- *       * includes per-product profit where the catalogue has
- *         `purchasePrice` set;
- *       * flags lines missing a purchase price so the owner knows
- *         what's excluded — we never fabricate a number;
- *       * reports `complete: false` when any line is missing COGS.
+ * Product profit = sales revenue - sale-time product purchase cost.
+ * Expenses are separate and never deducted here. Missing historical
+ * snapshots make the full profit unavailable; the known-cost subtotal
+ * covers only lines whose sale-time cost is known.
  *
  * Pure derived figure: it never auto-creates entries.
  */
@@ -692,13 +619,12 @@ export async function getProfitReport(filters = {}, { actor } = {}) {
   await delay(160);
   const window = resolveRange(filters);
   const sales = await getSales();
-  const products = await getProducts();
-  const productById = new Map(products.map((p) => [p.id, p]));
 
   const matchedSales = sales.filter((s) => inRange(s.createdAt, window));
 
   let revenue = 0;
   let knownCogs = 0;
+  let knownRevenue = 0;
   let missingCogsLines = 0;
   let totalCogsLines = 0;
   const byProduct = new Map();
@@ -707,54 +633,33 @@ export async function getProfitReport(filters = {}, { actor } = {}) {
     revenue += Number(s.total || 0);
     for (const it of s.items || []) {
       totalCogsLines += 1;
-      const product = productById.get(it.productId);
       const qty = Number(it.qty || 0);
       const revenueLine = qty * Number(it.price || 0);
-      if (product && product.purchasePrice != null) {
-        const cogsLine = qty * Number(product.purchasePrice || 0);
+      const key = it.productId || it.productName || 'unknown';
+      const row = byProduct.get(key) || {
+        productId: it.productId || null,
+        productName: it.productName || 'Unknown',
+        quantity: 0, revenue: 0, knownRevenue: 0, knownCogs: 0,
+        missingCogsLines: 0,
+      };
+      row.quantity += qty;
+      row.revenue += revenueLine;
+      const cost = it.purchaseCostAtSale;
+      if (cost != null && Number.isFinite(Number(cost)) && Number(cost) >= 0) {
+        const cogsLine = qty * Number(cost);
         knownCogs += cogsLine;
-        const k = product.id;
-        const cur = byProduct.get(k) || {
-          productId: product.id,
-          productName: product.name,
-          quantity: 0,
-          revenue: 0,
-          cogs: 0,
-          profit: 0,
-        };
-        cur.quantity += qty;
-        cur.revenue += revenueLine;
-        cur.cogs += cogsLine;
-        cur.profit += revenueLine - cogsLine;
-        byProduct.set(k, cur);
+        knownRevenue += revenueLine;
+        row.knownCogs += cogsLine;
+        row.knownRevenue += revenueLine;
       } else {
         missingCogsLines += 1;
-        const k = it.productId || it.productName || 'unknown';
-        const cur = byProduct.get(k) || {
-          productId: it.productId || null,
-          productName: it.productName || 'Unknown',
-          quantity: 0,
-          revenue: 0,
-          cogs: null,
-          profit: null,
-        };
-        cur.quantity += qty;
-        cur.revenue += revenueLine;
-        byProduct.set(k, cur);
+        row.missingCogsLines += 1;
       }
+      byProduct.set(key, row);
     }
   }
 
-  const expenses = await getExpenses();
-  const expenseTotal = expenses
-    .filter((e) => {
-      if (!e.expenseDate) return false;
-      const d = new Date(e.expenseDate);
-      return d >= window[0] && d <= window[1];
-    })
-    .reduce((sum, e) => sum + Number(e.amount || 0), 0);
-
-  const knownProfit = revenue - knownCogs - expenseTotal;
+  const knownCostSubtotal = knownRevenue - knownCogs;
   const complete = missingCogsLines === 0;
 
   return {
@@ -764,14 +669,18 @@ export async function getProfitReport(filters = {}, { actor } = {}) {
     saleCount: matchedSales.length,
     revenue,
     cogs: knownCogs,
-    expenseTotal,
-    profit: complete ? knownProfit : null,
-    partialProfit: complete ? null : knownProfit,
+    knownRevenue,
+    knownCostSubtotal,
+    profit: complete ? revenue - knownCogs : null,
+    partialProfit: complete ? null : knownCostSubtotal,
     missingCogsLines,
     totalCogsLines,
     complete,
-    products: Array.from(byProduct.values()).sort(
-      (a, b) => (b.profit ?? 0) - (a.profit ?? 0),
-    ),
+    products: Array.from(byProduct.values()).map((row) => ({
+      ...row,
+      cogs: row.missingCogsLines === 0 ? row.knownCogs : null,
+      profit: row.missingCogsLines === 0 ? row.revenue - row.knownCogs : null,
+      hasPurchasePrice: row.missingCogsLines === 0,
+    })).sort((a, b) => b.revenue - a.revenue),
   };
 }

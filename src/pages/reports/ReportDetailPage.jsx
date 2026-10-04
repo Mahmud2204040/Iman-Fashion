@@ -1,7 +1,11 @@
+import T from '../../components/common/LocalizedText.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.js';
 import { ROLES } from '../../constants/roles.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { formatCurrency } from '../../utils/format.js';
+import { getUiLanguage } from '../../utils/localeState.js';
 import {
   PageHeader,
   Card,
@@ -49,28 +53,49 @@ const RANGE_OPTIONS = [
   { id: 'year', label: 'This year' },
 ];
 
+const ACTOR_ONLY_REPORTS = new Set([
+  getSalesMonthly,
+  getCustomOrderOutstandingDues,
+  getInventoryCurrent,
+  getCustomerListReport,
+  getSupplierOutstandingDues,
+  getSupplierWiseTotals,
+  getExpensesMonthly,
+  getExpensesYearly,
+]);
+
 function formatMoney(amount) {
   if (amount === null || amount === undefined || Number.isNaN(Number(amount))) {
     return '—';
   }
-  return Number(amount).toFixed(2);
+  return formatCurrency(Number(amount));
+}
+
+function reportRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.rows)) return data.rows;
+  if (Array.isArray(data?.products)) return data.products;
+  return [];
 }
 
 function formatDate(value) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString();
+  return new Intl.DateTimeFormat(getUiLanguage() === 'bn' ? 'bn-BD-u-nu-latn' : 'en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Dhaka',
+  }).format(date);
 }
 
 function useReportData(loader, deps = [], range) {
   const { user } = useAuth();
   const [state, setState] = useState({ loading: true, error: '', data: null });
+  const [retryVersion, setRetryVersion] = useState(0);
 
   const depsKey = useMemo(() => JSON.stringify(deps), [deps]);
   const rangeKey = useMemo(
-    () => `${range?.preset || ''}|${range?.from || ''}|${range?.to || ''}`,
-    [range?.preset, range?.from, range?.to]
+    () => JSON.stringify(range),
+    [range]
   );
 
   useEffect(() => {
@@ -78,12 +103,12 @@ function useReportData(loader, deps = [], range) {
     let cancelled = false;
     setState({ loading: true, error: '', data: null });
     Promise.resolve()
-      .then(() =>
-        loader({
-          actor: { username: user.username, role: user.role },
-          range,
-        })
-      )
+      .then(() => {
+        const options = { actor: { username: user.username, role: user.role } };
+        return ACTOR_ONLY_REPORTS.has(loader)
+          ? loader(options)
+          : loader(range || {}, options);
+      })
       .then((data) => {
         if (!cancelled) setState({ loading: false, error: '', data });
       })
@@ -107,17 +132,18 @@ function useReportData(loader, deps = [], range) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, depsKey, rangeKey]);
+  }, [user, depsKey, rangeKey, retryVersion]);
 
-  return state;
+  return { ...state, retry: () => setRetryVersion((version) => version + 1) };
 }
 
 function KpiCard({ label, value, hint }) {
+  const { t } = useLocale();
   return (
-    <Card padding="md">
-      <p className={styles.kpiLabel}>{label}</p>
+    <Card padding="md" className={styles.kpiCard}>
+      <p className={styles.kpiLabel}>{t(label)}</p>
       <p className={styles.kpiValue}>{value}</p>
-      {hint ? <p className={styles.kpiHint}>{hint}</p> : null}
+      {hint ? <p className={styles.kpiHint}>{t(hint)}</p> : null}
     </Card>
   );
 }
@@ -134,8 +160,13 @@ function KpiRow({ items }) {
 }
 
 function FiltersBar({ preset, onPresetChange, range, onRangeChange, customSupported }) {
+  const { t } = useLocale();
+  const changeDate = (field) => (event) => {
+    const value = event.currentTarget.value;
+    onRangeChange({ ...range, [field]: value });
+  };
   return (
-    <Card padding="md">
+    <Card padding="md" className={styles.filterCard}>
       <div className={styles.filterRow}>
         {RANGE_OPTIONS.map((opt) => (
           <Button
@@ -145,23 +176,23 @@ function FiltersBar({ preset, onPresetChange, range, onRangeChange, customSuppor
             size="sm"
             onClick={() => onPresetChange(opt.id)}
           >
-            {opt.label}
+            {t(opt.label)}
           </Button>
         ))}
         {customSupported ? (
           <div className={styles.dateRow}>
             <input
               type="date"
-              aria-label="From date"
+              aria-label={t('From date')}
               value={range.from || ''}
-              onChange={(e) => onRangeChange({ ...range, from: e.target.value })}
+              onInput={changeDate('from')}
             />
-            <span aria-hidden="true">to</span>
+            <span aria-hidden="true">{t('to')}</span>
             <input
               type="date"
-              aria-label="To date"
+              aria-label={t('To date')}
               value={range.to || ''}
-              onChange={(e) => onRangeChange({ ...range, to: e.target.value })}
+              onInput={changeDate('to')}
             />
           </div>
         ) : null}
@@ -171,41 +202,48 @@ function FiltersBar({ preset, onPresetChange, range, onRangeChange, customSuppor
 }
 
 function LoadingBlock() {
+  const { t } = useLocale();
   return (
     <Card padding="lg">
       <div className={styles.loading}>
         <Spinner size="sm" />
-        <span>Loading report…</span>
+        <span>{t('Loading report…')}</span>
       </div>
     </Card>
   );
 }
 
-function ErrorBlock({ message }) {
+function ErrorBlock({ message, retry }) {
+  const { t } = useLocale();
   return (
     <Card padding="md">
       <Badge tone="danger" variant="soft">
-        {message || 'Something went wrong.'}
+        {t(message || 'Something went wrong.')}
       </Badge>
+      {retry ? <Button type="button" variant="secondary" size="sm" onClick={retry}>{t('Try again')}</Button> : null}
     </Card>
   );
 }
 
 function Note({ message }) {
+  const { t } = useLocale();
   if (!message) return null;
-  return <p className={styles.note}>{message}</p>;
+  return <p className={styles.note}>{t(message)}</p>;
 }
 
 function ReportShell({ title, subtitle, action, children }) {
+  const { t } = useLocale();
   return (
     <div className={styles.page}>
       <PageHeader
+        className={styles.reportHeader}
+        eyebrow="Reports"
         title={title}
         subtitle={subtitle}
         actions={
           <div className={styles.headerActions}>
             <Link to="/reports" className={styles.linkButton}>
-              ← All reports
+              ← {t('All reports')}
             </Link>
             {action}
           </div>
@@ -222,23 +260,31 @@ function useRangeState() {
   return { preset, setPreset, range, setRange };
 }
 
+function selectedReportRange(preset, from, to) {
+  return resolveRange({
+    preset,
+    from: preset === 'custom' ? from : undefined,
+    to: preset === 'custom' ? to : undefined,
+  });
+}
+
 function DateRangeReport({ title, subtitle, loader, deps, render, customSupported = true }) {
   const { preset, setPreset, range, setRange } = useRangeState();
   const resolved = useMemo(
-    () => resolveRange({ preset, from: range.from, to: range.to }),
+    () => selectedReportRange(preset, range.from, range.to),
     [preset, range.from, range.to]
   );
-  const { loading, error, data } = useReportData(loader, deps, resolved);
+  const { loading, error, data, retry } = useReportData(loader, deps, resolved);
   return (
     <ReportShell title={title} subtitle={subtitle}>
-      <FiltersBar
+      {!ACTOR_ONLY_REPORTS.has(loader) ? <FiltersBar
         preset={preset}
         onPresetChange={setPreset}
         range={range}
-        onRangeChange={setRange}
+        onRangeChange={(nextRange) => { setRange(nextRange); setPreset('custom'); }}
         customSupported={customSupported}
-      />
-      {loading ? <LoadingBlock /> : error ? <ErrorBlock message={error} /> : render(data)}
+      /> : null}
+      {loading ? <LoadingBlock /> : error ? <ErrorBlock message={error} retry={retry} /> : render(data)}
     </ReportShell>
   );
 }
@@ -255,8 +301,8 @@ function SalesSummaryReport() {
         <>
           <KpiRow
             items={[
-              { label: 'Sales count', value: data.count ?? 0 },
-              { label: 'Items sold', value: data.itemsSold ?? 0 },
+              { label: 'Sales count', value: data.saleCount ?? 0 },
+              { label: 'Items sold', value: data.itemCount ?? 0 },
               { label: 'Revenue', value: formatMoney(data.revenue) },
               { label: 'Average sale', value: formatMoney(data.averageSale) },
             ]}
@@ -281,7 +327,7 @@ function SalesMonthlyReport() {
               { key: 'count', header: 'Sales', render: (row) => row.count ?? 0 },
               { key: 'revenue', header: 'Revenue', render: (row) => formatMoney(row.revenue) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No sales recorded."
             getRowKey={(row, idx) => `${row.month || 'month'}-${idx}`}
           />
@@ -306,7 +352,7 @@ function SalesByProductReport() {
               { key: 'quantity', header: 'Qty sold', render: (row) => row.quantity ?? 0 },
               { key: 'revenue', header: 'Revenue', render: (row) => formatMoney(row.revenue) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No product sales."
             getRowKey={(row, idx) => `${row.productId || 'p'}-${idx}`}
           />
@@ -326,7 +372,7 @@ function SalesListReport() {
         <Card padding="md">
           <DataTable
             columns={[
-              { key: 'code', header: 'Sale #', render: (row) => row.code || '—' },
+              { key: 'salesCode', header: 'Sale #', render: (row) => row.salesCode || '—' },
               {
                 key: 'createdAt',
                 header: 'Date',
@@ -344,9 +390,9 @@ function SalesListReport() {
               },
               { key: 'total', header: 'Total', render: (row) => formatMoney(row.total) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No sales yet."
-            getRowKey={(row) => row.id || row.code}
+            getRowKey={(row) => row.id || row.salesCode}
           />
         </Card>
       )}
@@ -359,24 +405,24 @@ function SalesListReport() {
 function CustomOrderStatusReport() {
   const { preset, setPreset, range, setRange } = useRangeState();
   const resolved = useMemo(
-    () => resolveRange({ preset, from: range.from, to: range.to }),
+    () => selectedReportRange(preset, range.from, range.to),
     [preset, range.from, range.to]
   );
-  const { loading, error, data } = useReportData(getCustomOrderStatusCounts, [], resolved);
+  const { loading, error, data, retry } = useReportData(getCustomOrderStatusCounts, [], resolved);
   return (
     <ReportShell title="Custom orders by status" subtitle="Current status snapshot">
       <FiltersBar
         preset={preset}
         onPresetChange={setPreset}
         range={range}
-        onRangeChange={setRange}
+        onRangeChange={(nextRange) => { setRange(nextRange); setPreset('custom'); }}
         customSupported
       />
-      {loading ? <LoadingBlock /> : error ? <ErrorBlock message={error} /> : (
+      {loading ? <LoadingBlock /> : error ? <ErrorBlock message={error} retry={retry} /> : (
         <KpiRow
-          items={(data?.counts || []).map((c) => ({
-            label: c.status || '—',
-            value: c.count ?? 0,
+          items={Object.entries(data?.counts || {}).map(([status, count]) => ({
+            label: status,
+            value: count,
           }))}
         />
       )}
@@ -418,7 +464,7 @@ function CustomOrderDuesReport() {
                 ),
               },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No outstanding dues."
             getRowKey={(row) => row.id || row.code}
           />
@@ -438,19 +484,19 @@ function CustomOrderPaymentsReport() {
         <Card padding="md">
           <KpiRow
             items={[
-              { label: 'Payments', value: data?.count ?? 0 },
-              { label: 'Amount collected', value: formatMoney(data?.total) },
+              { label: 'Payments', value: reportRows(data).length },
+              { label: 'Amount collected', value: formatMoney(reportRows(data).reduce((sum, row) => sum + Number(row.amount || 0), 0)) },
             ]}
           />
           <div style={{ height: 12 }} />
           <DataTable
             columns={[
               {
-                key: 'paidAt',
+                key: 'createdAt',
                 header: 'Date',
-                render: (row) => formatDate(row.paidAt),
+                render: (row) => formatDate(row.createdAt),
               },
-              { key: 'code', header: 'Order #', render: (row) => row.code || '—' },
+              { key: 'orderCode', header: 'Order #', render: (row) => row.orderCode || '—' },
               {
                 key: 'customerName',
                 header: 'Customer',
@@ -458,9 +504,9 @@ function CustomOrderPaymentsReport() {
               },
               { key: 'amount', header: 'Amount', render: (row) => formatMoney(row.amount) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No payments yet."
-            getRowKey={(row, idx) => `${row.id || row.code || 'row'}-${idx}`}
+            getRowKey={(row, idx) => `${row.id || row.orderCode || 'row'}-${idx}`}
           />
         </Card>
       )}
@@ -472,21 +518,23 @@ function CustomOrderPaymentsReport() {
 
 function InventoryCurrentReport() {
   const navigate = useNavigate();
-  const { loading, error, data } = useReportData(getInventoryCurrent, [], null);
+  const { loading, error, data, retry } = useReportData(getInventoryCurrent, [], null);
   return (
     <ReportShell title="Current inventory" subtitle="Stock on hand right now">
       {loading ? (
         <LoadingBlock />
       ) : error ? (
-        <ErrorBlock message={error} />
+        <ErrorBlock message={error} retry={retry} />
       ) : (
         <Card padding="md">
+          <KpiRow items={[{ label: 'Total units', value: data?.totalUnits ?? 0 }, { label: 'Stock value', value: formatMoney(data?.totalValue) }]} />
           <DataTable
             columns={[
               { key: 'name', header: 'Product', render: (row) => row.name || '—' },
               { key: 'sku', header: 'SKU', render: (row) => row.sku || '—' },
               { key: 'category', header: 'Category', render: (row) => row.category || '—' },
               { key: 'stock', header: 'Stock', render: (row) => row.stock ?? 0 },
+              { key: 'stockValue', header: 'Stock value', render: (row) => formatMoney(row.stockValue) },
               {
                 key: 'status',
                 header: 'Status',
@@ -497,23 +545,10 @@ function InventoryCurrentReport() {
                 ),
               },
             ]}
-            rows={data?.rows || []}
-            emptyLabel={
-              <EmptyState
-                title="No products yet"
-                description="Add products from the Products page to track stock."
-                action={
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={() => navigate('/products')}
-                  >
-                    Open products
-                  </Button>
-                }
-              />
-            }
+            rows={reportRows(data)}
+            emptyTitle="No products yet"
+            emptyDescription="Add products from the Products page to track stock."
+            emptyAction={<Button type="button" variant="primary" size="sm" onClick={() => navigate('/products')}><T>Open products</T></Button>}
             getRowKey={(row) => row.id || row.sku}
           />
         </Card>
@@ -523,6 +558,7 @@ function InventoryCurrentReport() {
 }
 
 function StockAdjustmentsReport() {
+  const { t } = useLocale();
   return (
     <DateRangeReport
       title="Stock adjustments"
@@ -539,11 +575,11 @@ function StockAdjustmentsReport() {
               },
               { key: 'productName', header: 'Product', render: (row) => row.productName || '—' },
               { key: 'delta', header: 'Δ', render: (row) => row.delta ?? 0 },
-              { key: 'reason', header: 'Reason', render: (row) => row.reason || '—' },
+              { key: 'reason', header: 'Reason', render: (row) => row.reason === 'OPENING_STOCK' ? t('OPENING_STOCK') : row.reason || '—' },
               { key: 'note', header: 'Note', render: (row) => row.note || '—' },
               { key: 'createdBy', header: 'By', render: (row) => row.createdBy || '—' },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No stock movements."
             getRowKey={(row) => row.id || `${row.productId}-${row.createdAt}`}
           />
@@ -556,13 +592,13 @@ function StockAdjustmentsReport() {
 /* ------------------------------ Customers ------------------------------- */
 
 function CustomerListReport() {
-  const { loading, error, data } = useReportData(getCustomerListReport, [], null);
+  const { loading, error, data, retry } = useReportData(getCustomerListReport, [], null);
   return (
     <ReportShell title="Customer list" subtitle="All customers with current class">
       {loading ? (
         <LoadingBlock />
       ) : error ? (
-        <ErrorBlock message={error} />
+        <ErrorBlock message={error} retry={retry} />
       ) : (
         <Card padding="md">
           <DataTable
@@ -581,7 +617,7 @@ function CustomerListReport() {
                 ),
               },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No customers yet."
             getRowKey={(row) => row.id}
           />
@@ -603,27 +639,27 @@ function SupplierTotalsReport() {
         <Card padding="md">
           <DataTable
             columns={[
-              { key: 'name', header: 'Supplier', render: (row) => row.name || '—' },
-              { key: 'phone', header: 'Phone', render: (row) => row.phone || '—' },
+              { key: 'supplierName', header: 'Supplier', render: (row) => row.supplierName || '—' },
+              { key: 'purchases', header: 'Purchases', render: (row) => row.purchases ?? 0 },
               {
-                key: 'totalPurchases',
-                header: 'Purchases',
-                render: (row) => formatMoney(row.totalPurchases),
+                key: 'total',
+                header: 'Total',
+                render: (row) => formatMoney(row.total),
               },
               {
-                key: 'totalPaid',
+                key: 'paid',
                 header: 'Paid',
-                render: (row) => formatMoney(row.totalPaid),
+                render: (row) => formatMoney(row.paid),
               },
               {
-                key: 'outstanding',
+                key: 'due',
                 header: 'Due',
-                render: (row) => formatMoney(row.outstanding),
+                render: (row) => formatMoney(row.due),
               },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No purchases yet."
-            getRowKey={(row) => row.id}
+            getRowKey={(row) => row.supplierId || row.supplierName}
           />
         </Card>
       )}
@@ -642,17 +678,14 @@ function SupplierPurchasesReport() {
           <DataTable
             columns={[
               { key: 'createdAt', header: 'Date', render: (row) => formatDate(row.createdAt) },
+              { key: 'code', header: 'Purchase #', render: (row) => row.code || '—' },
               {
                 key: 'supplierName',
                 header: 'Supplier',
                 render: (row) => row.supplierName || '—',
               },
-              {
-                key: 'items',
-                header: 'Items',
-                render: (row) => (Array.isArray(row.items) ? row.items.length : 0),
-              },
               { key: 'total', header: 'Total', render: (row) => formatMoney(row.total) },
+              { key: 'due', header: 'Due', render: (row) => formatMoney(row.due) },
               {
                 key: 'status',
                 header: 'Status',
@@ -663,7 +696,7 @@ function SupplierPurchasesReport() {
                 ),
               },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No purchases."
             getRowKey={(row) => row.id}
           />
@@ -688,18 +721,14 @@ function SupplierDuesReport() {
                 header: 'Supplier',
                 render: (row) => row.supplierName || '—',
               },
-              {
-                key: 'phone',
-                header: 'Phone',
-                render: (row) => row.phone || '—',
-              },
+              { key: 'code', header: 'Purchase #', render: (row) => row.code || '—' },
               { key: 'total', header: 'Total', render: (row) => formatMoney(row.total) },
               { key: 'paid', header: 'Paid', render: (row) => formatMoney(row.paid) },
               { key: 'due', header: 'Due', render: (row) => formatMoney(row.due) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="Nothing owed."
-            getRowKey={(row) => row.id}
+            getRowKey={(row) => row.purchaseId}
           />
         </Card>
       )}
@@ -718,10 +747,11 @@ function SupplierPaymentsReport() {
           <DataTable
             columns={[
               {
-                key: 'paidAt',
+                key: 'createdAt',
                 header: 'Date',
-                render: (row) => formatDate(row.paidAt),
+                render: (row) => formatDate(row.createdAt),
               },
+              { key: 'purchaseCode', header: 'Purchase #', render: (row) => row.purchaseCode || '—' },
               {
                 key: 'supplierName',
                 header: 'Supplier',
@@ -735,7 +765,7 @@ function SupplierPaymentsReport() {
               },
               { key: 'note', header: 'Note', render: (row) => row.note || '—' },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No supplier payments."
             getRowKey={(row, idx) => `${row.id || 'row'}-${idx}`}
           />
@@ -748,13 +778,16 @@ function SupplierPaymentsReport() {
 /* ---------------------------- Raw materials ----------------------------- */
 
 function RawMaterialsReport() {
-  const { loading, error, data } = useReportData(getRawMaterialsReport, [], null);
+  const { preset, setPreset, range, setRange } = useRangeState();
+  const resolved = useMemo(() => selectedReportRange(preset, range.from, range.to), [preset, range.from, range.to]);
+  const { loading, error, data, retry } = useReportData(getRawMaterialsReport, [], resolved);
   return (
     <ReportShell title="Raw materials" subtitle="Stock list of raw materials">
+      <FiltersBar preset={preset} onPresetChange={setPreset} range={range} onRangeChange={(nextRange) => { setRange(nextRange); setPreset('custom'); }} customSupported />
       {loading ? (
         <LoadingBlock />
       ) : error ? (
-        <ErrorBlock message={error} />
+        <ErrorBlock message={error} retry={retry} />
       ) : (
         <Card padding="md">
           <DataTable
@@ -773,7 +806,7 @@ function RawMaterialsReport() {
                 render: (row) => row.description || '—',
               },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No raw materials."
             getRowKey={(row) => row.id}
           />
@@ -817,7 +850,7 @@ function ExpensesListReport() {
                 render: (row) => row.createdBy || '—',
               },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No expenses recorded."
             getRowKey={(row) => row.id}
           />
@@ -840,7 +873,7 @@ function ExpensesMonthlyReport() {
               { key: 'month', header: 'Month', render: (row) => row.month || '—' },
               { key: 'total', header: 'Total', render: (row) => formatMoney(row.total) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No expenses."
             getRowKey={(row, idx) => `${row.month || 'm'}-${idx}`}
           />
@@ -863,7 +896,7 @@ function ExpensesYearlyReport() {
               { key: 'year', header: 'Year', render: (row) => row.year || '—' },
               { key: 'total', header: 'Total', render: (row) => formatMoney(row.total) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No expenses."
             getRowKey={(row, idx) => `${row.year || 'y'}-${idx}`}
           />
@@ -891,7 +924,7 @@ function ExpensesByCategoryReport() {
               { key: 'count', header: 'Entries', render: (row) => row.count ?? 0 },
               { key: 'total', header: 'Total', render: (row) => formatMoney(row.total) },
             ]}
-            rows={data?.rows || []}
+            rows={reportRows(data)}
             emptyLabel="No expenses."
             getRowKey={(row, idx) => `${row.categoryId || row.categoryName || 'c'}-${idx}`}
           />
@@ -904,32 +937,26 @@ function ExpensesByCategoryReport() {
 /* -------------------------------- Cash ---------------------------------- */
 
 function CashOpeningReport() {
-  const { loading, error, data } = useReportData(getCashOpening, [], null);
   return (
-    <ReportShell title="Cash opening" subtitle="Opening balance for the day">
-      {loading ? (
-        <LoadingBlock />
-      ) : error ? (
-        <ErrorBlock message={error} />
-      ) : (
+    <DateRangeReport title="Cash opening" subtitle="Opening balance before the selected period" loader={getCashOpening} render={(data) => (
         <Card padding="md">
           <KpiRow
             items={[
               {
                 label: 'Opening balance',
                 value: formatMoney(data?.opening),
-                hint: data?.derivedFrom || '',
+                hint: '',
               },
             ]}
           />
           <Note message={data?.note} />
         </Card>
-      )}
-    </ReportShell>
+      )} />
   );
 }
 
 function CashInReport() {
+  const { t } = useLocale();
   return (
     <DateRangeReport
       title="Cash in"
@@ -939,8 +966,8 @@ function CashInReport() {
         <Card padding="md">
           <KpiRow
             items={[
-              { label: 'Entries', value: data?.count ?? 0 },
-              { label: 'Total in', value: formatMoney(data?.total) },
+              { label: 'Entries', value: data?.length ?? 0 },
+              { label: 'Total in', value: formatMoney((data || []).reduce((sum, row) => sum + row.amount, 0)) },
             ]}
           />
           <div style={{ height: 12 }} />
@@ -954,7 +981,7 @@ function CashInReport() {
               {
                 key: 'referenceType',
                 header: 'Source',
-                render: (row) => row.referenceType || 'MANUAL',
+                render: (row) => t(row.referenceType || 'MANUAL'),
               },
               { key: 'amount', header: 'Amount', render: (row) => formatMoney(row.amount) },
               { key: 'reason', header: 'Reason', render: (row) => row.reason || '—' },
@@ -964,7 +991,7 @@ function CashInReport() {
                 render: (row) => row.createdBy || '—',
               },
             ]}
-            rows={data?.rows || []}
+            rows={data || []}
             emptyLabel="No cash in."
             getRowKey={(row) => row.id}
           />
@@ -975,6 +1002,7 @@ function CashInReport() {
 }
 
 function CashOutReport() {
+  const { t } = useLocale();
   return (
     <DateRangeReport
       title="Cash out"
@@ -984,8 +1012,8 @@ function CashOutReport() {
         <Card padding="md">
           <KpiRow
             items={[
-              { label: 'Entries', value: data?.count ?? 0 },
-              { label: 'Total out', value: formatMoney(data?.total) },
+              { label: 'Entries', value: data?.length ?? 0 },
+              { label: 'Total out', value: formatMoney((data || []).reduce((sum, row) => sum + row.amount, 0)) },
             ]}
           />
           <div style={{ height: 12 }} />
@@ -999,7 +1027,7 @@ function CashOutReport() {
               {
                 key: 'referenceType',
                 header: 'Source',
-                render: (row) => row.referenceType || 'MANUAL',
+                render: (row) => t(row.referenceType || 'MANUAL'),
               },
               { key: 'amount', header: 'Amount', render: (row) => formatMoney(row.amount) },
               { key: 'reason', header: 'Reason', render: (row) => row.reason || '—' },
@@ -1009,7 +1037,7 @@ function CashOutReport() {
                 render: (row) => row.createdBy || '—',
               },
             ]}
-            rows={data?.rows || []}
+            rows={data || []}
             emptyLabel="No cash out."
             getRowKey={(row) => row.id}
           />
@@ -1020,52 +1048,48 @@ function CashOutReport() {
 }
 
 function CashAdjustmentsReport() {
-  const { loading, error, data } = useReportData(getCashAdjustmentsReport, [], null);
   return (
-    <ReportShell
-      title="Cash adjustments"
-      subtitle="Reconciliation corrections"
-      action={null}
-    >
-      {loading ? (
-        <LoadingBlock />
-      ) : error ? (
-        <ErrorBlock message={error} />
-      ) : (
+    <DateRangeReport title="Cash reconciliations & adjustments" subtitle="Saved counts and confirmed corrections" loader={getCashAdjustmentsReport} render={(data) => (
         <Card padding="md">
-          <EmptyState
-            title="No adjustments"
-            description="Manual reconciliation entries will appear here when used."
-          />
+          <h2><T>Reconciliation observations</T></h2>
+          <DataTable columns={[
+            { key: 'businessDate', header: 'Business date' },
+            { key: 'expectedCash', header: 'Expected', render: (row) => formatMoney(row.expectedCash) },
+            { key: 'physicalCash', header: 'Physical', render: (row) => formatMoney(row.physicalCash) },
+            { key: 'difference', header: 'Difference', render: (row) => formatMoney(row.difference) },
+            { key: 'status', header: 'Status' },
+            { key: 'reconciledBy', header: 'Counted by' },
+          ]} rows={data?.reconciliations || []} getRowKey={(row) => row.id} emptyLabel="No counts in this period." />
+          <h2><T>Applied adjustments</T></h2>
+          <DataTable columns={[
+            { key: 'createdAt', header: 'Date', render: (row) => new Date(row.createdAt).toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }) },
+            { key: 'amount', header: 'Signed amount', render: (row) => formatMoney(row.amount) },
+            { key: 'reason', header: 'Reason' },
+            { key: 'createdBy', header: 'By' },
+          ]} rows={data?.rows || []} getRowKey={(row) => row.id} emptyLabel="No applied adjustments in this period." />
           <Note message={data?.note} />
         </Card>
-      )}
-    </ReportShell>
+      )} />
   );
 }
 
 function CashExpectedReport() {
-  const { loading, error, data } = useReportData(getCashExpected, [], null);
   return (
-    <ReportShell title="Expected cash" subtitle="Closing balance based on cash movements">
-      {loading ? (
-        <LoadingBlock />
-      ) : error ? (
-        <ErrorBlock message={error} />
-      ) : (
+    <DateRangeReport title="Expected cash" subtitle="Closing balance based on cash movements" loader={getCashExpected} render={(data) => (
         <>
           <KpiRow
             items={[
               { label: 'Opening', value: formatMoney(data?.opening) },
+              { label: 'Initial setup in period', value: formatMoney(data?.initialOpening) },
               { label: 'Cash in', value: formatMoney(data?.cashIn) },
               { label: 'Cash out', value: formatMoney(data?.cashOut) },
+              { label: 'Adjustments', value: formatMoney(data?.adjustments) },
               { label: 'Expected closing', value: formatMoney(data?.expected) },
             ]}
           />
           <Note message={data?.note} />
         </>
-      )}
-    </ReportShell>
+      )} />
   );
 }
 
@@ -1074,44 +1098,44 @@ function CashExpectedReport() {
 function ProfitReport() {
   const { preset, setPreset, range, setRange } = useRangeState();
   const resolved = useMemo(
-    () => resolveRange({ preset, from: range.from, to: range.to }),
+    () => selectedReportRange(preset, range.from, range.to),
     [preset, range.from, range.to]
   );
-  const { loading, error, data } = useReportData(getProfitReport, [], resolved);
+  const { loading, error, data, retry } = useReportData(getProfitReport, [], resolved);
   return (
     <ReportShell
-      title="Profit & loss"
-      subtitle="Revenue, COGS and expense for the period"
+      title="Product profit"
+      subtitle="Sales revenue minus sale-time product purchase cost. Expenses are excluded."
     >
       <FiltersBar
         preset={preset}
         onPresetChange={setPreset}
         range={range}
-        onRangeChange={setRange}
+        onRangeChange={(nextRange) => { setRange(nextRange); setPreset('custom'); }}
         customSupported
       />
       {loading ? (
         <LoadingBlock />
       ) : error ? (
-        <ErrorBlock message={error} />
+        <ErrorBlock message={error} retry={retry} />
       ) : (
         <>
           <KpiRow
             items={[
               { label: 'Revenue', value: formatMoney(data?.revenue) },
-              { label: 'COGS', value: formatMoney(data?.cogs) },
-              { label: 'Expenses', value: formatMoney(data?.expenseTotal) },
+              { label: 'Known purchase cost', value: formatMoney(data?.cogs) },
+              { label: 'Known-cost subtotal', value: formatMoney(data?.knownCostSubtotal), hint: 'Only lines with a cost snapshot' },
               {
-                label: data?.profit === null ? 'Profit (partial)' : 'Profit',
+                label: 'Product profit',
                 value:
                   data?.profit === null
-                    ? '—'
+                    ? 'N/A'
                     : formatMoney(data?.profit),
                 hint:
                   data?.missingCogsLines > 0
-                    ? `${data.missingCogsLines} of ${data.totalCogsLines} sale lines missing purchase price`
+                    ? `${data.missingCogsLines} of ${data.totalCogsLines} sale lines lack a sale-time cost snapshot`
                     : data?.complete
-                      ? 'All sale lines have purchase price'
+                      ? 'All sale lines have sale-time cost snapshots'
                       : '',
               },
             ]}
@@ -1119,7 +1143,7 @@ function ProfitReport() {
           <Note
             message={
               data?.missingCogsLines > 0
-                ? 'Some sales happened before purchase prices were recorded. Profit is reported as partial so we do not invent a number.'
+                ? 'Full product profit is unavailable where a sale-time cost is unknown. The known-cost subtotal excludes those lines; later product cost edits never backfill them.'
                 : ''
             }
           />
@@ -1140,26 +1164,26 @@ function ProfitReport() {
                 },
                 {
                   key: 'cogs',
-                  header: 'COGS',
+                  header: 'Purchase cost',
                   render: (row) => formatMoney(row.cogs),
                 },
                 {
                   key: 'profit',
-                  header: 'Profit',
-                  render: (row) => formatMoney(row.profit),
+                  header: 'Product profit',
+                  render: (row) => row.profit === null ? 'N/A' : formatMoney(row.profit),
                 },
                 {
                   key: 'hasPurchasePrice',
-                  header: 'COGS source',
+                  header: 'Cost snapshot',
                   render: (row) =>
                     row.hasPurchasePrice ? (
-                      <Badge tone="success" variant="soft">
+                      <Badge tone="success" variant="soft"><T>
                         OK
-                      </Badge>
+                      </T></Badge>
                     ) : (
-                      <Badge tone="warning" variant="soft">
+                      <Badge tone="warning" variant="soft"><T>
                         Missing
-                      </Badge>
+                      </T></Badge>
                     ),
                 },
               ]}
@@ -1228,9 +1252,9 @@ export function ReportDetailPage() {
             title="Unknown report"
             description="That report does not exist. Pick one from the list."
             action={
-              <Link to="/reports" className={styles.linkButton}>
+              <Link to="/reports" className={styles.linkButton}><T>
                 Back to all reports
-              </Link>
+              </T></Link>
             }
           />
         </Card>

@@ -205,3 +205,22 @@
     background-position: -200% 0;
   }
 }
+
+/* Dashboard V2: flat warm cards and compact ledger rows. */
+.feed {
+  gap: 0;
+  padding: 0;
+  border-color: var(--nf-border, #e4e0d6);
+  border-radius: 16px;
+  background: var(--nf-surface, #fffdf8);
+  box-shadow: none;
+  overflow: hidden;
+}
+.header { padding: 18px 20px; border-bottom: 1px solid var(--nf-border, #e4e0d6); }
+.title { font-size: 17px; color: var(--nf-ink, #171817); }
+.subtitle { font-size: 11px; color: var(--nf-muted, #74786f); text-transform: none; letter-spacing: 0; }
+.row { padding: 14px 20px; border-bottom-color: var(--nf-border, #e4e0d6); }
+.iconSale, .iconOrder { background: #f4f1ea; color: #697954; }
+.itemTitle, .amountSale, .amountOrder { color: var(--nf-ink, #171817); }
+.metaRow, .detail, .time { color: var(--nf-muted, #74786f); }
+.empty { min-height: 200px; }

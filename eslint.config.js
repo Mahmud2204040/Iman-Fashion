@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'api/**'] },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {
@@ -29,8 +29,7 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
-      // Project decision: no PropTypes / no TypeScript.
-      // Component contracts are documented in JSDoc and reviewed at code-review time.
+      // Frontend component contracts are documented in JSDoc.
       'react/prop-types': 'off',
       'react/display-name': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],

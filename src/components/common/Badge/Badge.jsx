@@ -1,4 +1,5 @@
 import styles from './Badge.module.css';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 
 /**
  * Badge — presentation only.
@@ -8,15 +9,18 @@ import styles from './Badge.module.css';
  * whatever human-friendly string they want.
  */
 function Badge({
-  variant = 'neutral',
+  variant,
+  tone,
   children,
   className = '',
   size = 'md',
   ...rest
 }) {
+  const { t } = useLocale();
+  const color = ['success', 'warning', 'danger', 'info', 'neutral'].includes(variant) ? variant : tone || 'neutral';
   const classes = [
     styles.badge,
-    styles[`variant-${variant}`],
+    styles[`variant-${color}`],
     styles[`size-${size}`],
     className,
   ]
@@ -25,7 +29,7 @@ function Badge({
 
   return (
     <span className={classes} {...rest}>
-      {children}
+      {typeof children === 'string' ? t(children) : children}
     </span>
   );
 }

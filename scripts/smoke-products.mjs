@@ -185,6 +185,18 @@ await test('createProduct — zero stock skips ledger entry', async () => {
   assert.equal(hist.length, 0);
 });
 
+await test('createProduct — spec form generates ID without default sale price or stock', async () => {
+  const created = await createProduct(
+    { name: 'Navy Blue Pant - XXL', purchasePrice: null, description: 'New product' },
+    { actor: { username: 'owner', role: ROLES.OWNER } },
+  );
+  assert.equal(created.sku, created.id.toUpperCase());
+  assert.equal(created.price, null);
+  assert.equal(created.purchasePrice, null);
+  assert.equal(created.stock, 0);
+  assert.equal((await getStockHistory(created.id)).length, 0);
+});
+
 await test('adjustStock — rejects zero delta', async () => {
   await assert.rejects(
     () =>

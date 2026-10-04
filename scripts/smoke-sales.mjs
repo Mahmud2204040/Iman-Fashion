@@ -23,6 +23,8 @@ import {
   searchProducts,
   searchSalesByCode,
 } from '../src/services/sales/salesService.js';
+import { getProductById as getCanonicalProduct, getStockHistory, updateProduct } from '../src/services/products/productService.js';
+import { getCurrentCash } from '../src/services/cash/cashService.js';
 
 let passed = 0;
 let failed = 0;
@@ -87,6 +89,9 @@ await test('searchProducts — empty query yields a slice of the catalogue', asy
   const res = await searchProducts('');
   assert.ok(Array.isArray(res));
   assert.ok(res.length >= 3, 'expected at least 3 seed products');
+  assert.ok(res.every((product) => product.id && !('price' in product) && !('category' in product) && !('sku' in product)));
+  const byId = await searchProducts(res[0].id);
+  assert.ok(byId.some((product) => product.id === res[0].id));
 });
 
 await test('getSales — returns an array', async () => {
@@ -94,11 +99,21 @@ await test('getSales — returns an array', async () => {
   assert.ok(Array.isArray(res), 'getSales must return an array');
 });
 
+const saleCustomer = (await searchCustomers(''))[0];
+
+await test('completeSale — customer is required', async () => {
+  const product = (await searchProducts(''))[0];
+  await assert.rejects(
+    () => completeSale({ items: [{ productId: product.id, qty: 1, price: 100 }] }),
+    (error) => error.code === 'CUSTOMER_REQUIRED',
+  );
+});
+
 await test('completeSale — requires items', async () => {
   await assert.rejects(
     () =>
       completeSale(
-        { customer: null, items: [] },
+        { customer: saleCustomer, items: [] },
         { actor: { username: 'tester', role: 'OWNER' } },
       ),
     /at least one item/i,
@@ -106,12 +121,13 @@ await test('completeSale — requires items', async () => {
 });
 
 await test('completeSale — invalid line.qty is rejected', async () => {
+  const product = (await searchProducts(''))[0];
   await assert.rejects(
     () =>
       completeSale(
         {
-          customer: null,
-          items: [{ productId: 'p1', productName: 'X', qty: 0, price: 100 }],
+          customer: saleCustomer,
+          items: [{ productId: product.id, productName: product.name, qty: 0, price: 100 }],
         },
         { actor: { username: 'tester', role: 'OWNER' } },
       ),
@@ -119,12 +135,32 @@ await test('completeSale — invalid line.qty is rejected', async () => {
   );
 });
 
+await test('completeSale rejects zero/blank price and insufficient stock without any writes', async () => {
+  const product = (await searchProducts(''))[0];
+  const cashBefore = getCurrentCash();
+  const saleCount = (await getSales()).length;
+  const stockBefore = (await getCanonicalProduct(product.id)).stock;
+  for (const price of [0, '', -1, 'invalid']) {
+    await assert.rejects(
+      () => completeSale({ customer: saleCustomer, items: [{ productId: product.id, qty: 1, price }] }),
+      (error) => error.code === 'INVALID_PRICE',
+    );
+  }
+  await assert.rejects(
+    () => completeSale({ customer: saleCustomer, items: [{ productId: product.id, qty: stockBefore + 1, price: 100 }] }),
+    (error) => error.code === 'INSUFFICIENT_STOCK',
+  );
+  assert.equal(getCurrentCash(), cashBefore);
+  assert.equal((await getSales()).length, saleCount);
+  assert.equal((await getCanonicalProduct(product.id)).stock, stockBefore);
+});
+
 await test('completeSale — happy path returns sale + paired CASH_IN', async () => {
   const products = await searchProducts('');
   const p = products[0];
   const result = await completeSale(
     {
-      customer: null,
+      customer: saleCustomer,
       items: [{ productId: p.id, productName: p.name, qty: 2, price: 100 }],
     },
     { actor: { username: 'tester', role: 'OWNER' } },
@@ -143,13 +179,43 @@ await test('completeSale — single line with merged qty works', async () => {
   const p = products[1];
   const merged = await completeSale(
     {
-      customer: null,
+      customer: saleCustomer,
       items: [{ productId: p.id, productName: p.name, qty: 3, price: 50 }],
     },
     { actor: { username: 'tester', role: 'OWNER' } },
   );
   assert.equal(merged.sale.items.length, 1);
   assert.equal(merged.sale.items[0].qty, 3);
+});
+
+await test('sale uses canonical stock and immutable cost snapshot', async () => {
+  const product = (await searchProducts(''))[2];
+  const owner = { username: 'owner', role: 'OWNER' };
+  await updateProduct(product.id, { purchasePrice: 75 }, { actor: owner });
+  const beforeStock = (await getCanonicalProduct(product.id)).stock;
+  const beforeHistory = (await getStockHistory(product.id)).length;
+  const created = await completeSale({
+    customer: saleCustomer,
+    items: [{ productId: product.id, qty: 2, price: 140 }],
+    idempotencyKey: 'smoke-snapshot-once',
+  }, { actor: owner });
+  assert.equal(created.sale.items[0].purchaseCostAtSale, 75);
+  assert.equal((await getCanonicalProduct(product.id)).stock, beforeStock - 2);
+  assert.equal((await getStockHistory(product.id)).length, beforeHistory + 1);
+  await updateProduct(product.id, { purchasePrice: 200 }, { actor: owner });
+  assert.equal((await getSaleById(created.sale.id)).items[0].purchaseCostAtSale, 75);
+  const employeeSale = await getSaleById(created.sale.id, { actor: { username: 'employee', role: 'EMPLOYEE' } });
+  assert.equal('purchaseCostAtSale' in employeeSale.items[0], false);
+  assert.equal('purchasePrice' in (await searchProducts(''))[0], false);
+  const beforeRetryCash = getCurrentCash();
+  const retried = await completeSale({
+    customer: saleCustomer,
+    items: [{ productId: product.id, qty: 2, price: 140 }],
+    idempotencyKey: 'smoke-snapshot-once',
+  }, { actor: owner });
+  assert.equal(retried.sale.id, created.sale.id);
+  assert.equal(getCurrentCash(), beforeRetryCash);
+  assert.equal((await getCanonicalProduct(product.id)).stock, beforeStock - 2);
 });
 
 await test('getSaleById — returns the sale object', async () => {

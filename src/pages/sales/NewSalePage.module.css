@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: var(--space-5, 1.25rem);
   padding: var(--page-pad-y, 1.25rem) var(--page-pad-x, 1.5rem);
-  max-width: 1320px;
+  max-width: 1584px;
   margin: 0 auto;
 }
 
@@ -408,6 +408,7 @@
   margin: 0;
   padding: 0;
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 0.25rem;
 }
@@ -501,11 +502,6 @@
 
 .productSku {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-}
-
-.productPrice {
-  color: var(--c-text, #111827);
-  font-weight: 600;
 }
 
 .productBadge {
@@ -766,4 +762,57 @@
 
 .successTotal {
   font-variant-numeric: tabular-nums;
+}
+
+/* Figma sales-workbench visual layer: warm surfaces, lime affordances, and
+   the same information architecture as the approved Sales History screen. */
+.page {
+  --c-brand: #6a8d2c;
+  --c-text: #171817;
+  --c-text-strong: #171817;
+  --c-text-muted: #74786f;
+  --c-surface: #fffdf8;
+  --c-surface-soft: #f6f3ec;
+  --c-surface-hover: #f2f7df;
+  --c-border: #e4e0d6;
+  --c-border-soft: #ece9e1;
+  --c-danger: #a54840;
+  --new-sale-card-height: clamp(480px, calc((100dvh - 300px) * 1.2), 648px);
+}
+
+.card {
+  border-color: #e4e0d6;
+  border-radius: 20px;
+  background: #fffdf8;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .04);
+}
+
+.cardTitleIcon {
+  background: #f2f7df;
+  color: #6a8d2c;
+}
+
+.cardHead { border-bottom-color: #e4e0d6; }
+.resultItem, .productItem, .cartItem, .pickedDetail { border-color: #e4e0d6; }
+.resultItem:hover, .productItem:hover { border-color: #b8d574; background: #fcfdf7; box-shadow: none; }
+.productBadge { background: #f6f3ec; color: #74786f; }
+.productBadgeIn { background: #f1f8df; color: #567424; }
+.customerChip { background: #f1f8df; color: #567424; }
+.pickedHero { background: linear-gradient(135deg, #f2f7df 0%, #fffdf8 100%); border-color: #dce9b9; }
+.pickedAvatar { background: #c7f36b; color: #171817; }
+.cartItem { background: #fcfbf7; }
+.cartFooter { border-top-color: #e4e0d6; background: #fffdf8; }
+.totalValue { color: #171817; }
+.newCustomerButton { border-color: #e4e0d6; color: #171817; background: #fffdf8; }
+.newCustomerButton:hover:not(:disabled) { border-color: #b8d574; background: #f2f7df; }
+.completeButton { border-color: #171817 !important; background: #171817 !important; color: #fff !important; }
+.completeButton:hover:not(:disabled) { background: #30332c !important; }
+.completeButton:disabled { background: #d8ddd0 !important; border-color: #d8ddd0 !important; color: #74786f !important; opacity: 1; }
+.cartError { background: #fff1ee; color: #a54840; }
+.priceHint { margin: 0; color: var(--c-text-muted); font-size: var(--fs-xs, 0.75rem); }
+
+@media (max-width: 768px) {
+  .page { --new-sale-card-height: clamp(456px, calc((100dvh - 320px) * 1.2), 528px); }
+  .card { height: var(--new-sale-card-height); min-height: 360px; max-height: var(--new-sale-card-height); }
+  .resultArea, .cartBody, .pickedDetails { overflow-y: auto; }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocale } from '../../../contexts/LocaleContext.jsx';
 import styles from './Modal.module.css';
 
 /**
@@ -23,10 +24,17 @@ function Modal({
   size = 'md',
   dismissable = true,
   className = '',
+  overlayClassName = '',
   labelledBy,
 }) {
+  const { t } = useLocale();
   const dialogRef = useRef(null);
   const previousActiveRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -47,7 +55,7 @@ function Modal({
     const handleKey = (e) => {
       if (e.key === 'Escape' && dismissable) {
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
       }
     };
     window.addEventListener('keydown', handleKey);
@@ -60,7 +68,7 @@ function Modal({
         prev.focus({ preventScroll: true });
       }
     };
-  }, [open, dismissable, onClose]);
+  }, [open, dismissable]);
 
   if (!open) return null;
 
@@ -80,7 +88,7 @@ function Modal({
     .join(' ');
 
   return createPortal(
-    <div className={styles.overlay} onClick={handleOverlayClick}>
+    <div className={[styles.overlay, overlayClassName].filter(Boolean).join(' ')} onClick={handleOverlayClick}>
       <div
         ref={dialogRef}
         className={dialogClasses}
@@ -92,13 +100,13 @@ function Modal({
         {title ? (
           <header className={styles.header}>
             <h2 id={titleId} className={styles.title}>
-              {title}
+              {typeof title === 'string' ? t(title) : title}
             </h2>
             {dismissable ? (
               <button
                 type="button"
                 className={styles.closeBtn}
-                aria-label="Close"
+                aria-label={t('Close')}
                 onClick={onClose}
               >
                 ×

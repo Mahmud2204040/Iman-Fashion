@@ -1,9 +1,105 @@
-/* ReportDetailPage — Phase 13. */
+/* Report detail pages share the approved warm-light Reports visual language. */
 
 .page {
+  --color-primary: #805639;
+  --color-primary-hover: #6f4c34;
+  --color-primary-active: #583925;
+  --color-primary-soft: #f4ecdf;
+  --color-primary-ring: #c7f36b;
+  --color-surface: #fffdf8;
+  --color-border: #e5e0d7;
+  --color-border-strong: #cbbfae;
+  --color-border-subtle: #eee9df;
+  --color-neutral-50: #f5f2eb;
+  --color-neutral-100: #f1eee7;
+  --color-text: #171817;
+  --color-text-secondary: #4e5550;
+  --color-text-muted: #68706f;
+  --focus-ring: 0 0 0 3px #c7f36b80;
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: 18px;
+  min-width: 0;
+  padding: 8px 0 28px;
+  color: #171817;
+}
+
+.reportHeader {
+  align-items: center;
+  margin: 0;
+  padding: 0 0 18px;
+  border-bottom: 1px solid #e5e0d7;
+}
+
+.reportHeader span {
+  color: #945c39;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.reportHeader h1 {
+  color: #151917;
+  font-size: clamp(27px, 2.6vw, 34px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1.12;
+}
+
+.reportHeader p {
+  max-width: 780px;
+  color: #68706f;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.filterCard,
+.kpiCard {
+  border-color: #e5e0d7;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #fffdf9, #fcfaf6);
+  box-shadow: 0 8px 23px #51493208;
+}
+
+.filterCard {
+  padding: 13px 16px;
+}
+
+.kpiCard {
+  min-height: 110px;
+  padding: 18px 20px;
+}
+
+.page table thead th {
+  background: #f5f2eb;
+  color: #626960;
+  border-bottom-color: #e5e0d7;
+}
+
+.page table tbody tr:hover {
+  background: #f7f5ee;
+}
+
+.page input[type='date'] {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #e5e0d7;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #171817;
+  font: inherit;
+  font-size: 13px;
+  color-scheme: light;
+}
+
+.page input[type='date']:focus-visible {
+  border-color: #8c7253;
+  box-shadow: var(--focus-ring);
+}
+
+.page a:focus-visible,
+.page button:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 
 .headerActions {
@@ -18,7 +114,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 32px;
+  min-height: 38px;
   padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
@@ -55,36 +151,36 @@
 .filterRow {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .dateRow {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .kpiRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(205px, 1fr));
+  gap: 13px;
 }
 
 .kpiLabel {
   margin: 0;
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-muted);
+  font-weight: 700;
+  color: #78553a;
   text-transform: uppercase;
   letter-spacing: var(--letter-spacing-wider);
 }
 
 .kpiValue {
   margin: var(--space-1) 0 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  font-size: clamp(24px, 2.3vw, 31px);
+  font-weight: 800;
   color: var(--color-text);
   line-height: var(--line-height-tight);
   word-break: break-word;
@@ -111,6 +207,10 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   line-height: var(--line-height-snug);
+  padding: 11px 14px;
+  border: 1px solid #e6dfcd;
+  border-radius: 8px;
+  background: #fbf7e9;
 }
 
 @media (max-width: 720px) {
@@ -120,12 +220,20 @@
 }
 
 @media (max-width: 480px) {
+  .page { padding-top: 0; }
+  .reportHeader { align-items: stretch; }
   .filterRow {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .dateRow {
-    flex-direction: column;
-    align-items: stretch;
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+  .dateRow input[type='date'] {
+    width: min(43%, 180px);
+  }
+  .kpiRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

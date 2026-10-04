@@ -1,17 +1,18 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * NewSalePage — Phase 5.
  *
- * Two-pane layout on desktop, stacked on mobile.
+ * Three-pane layout on desktop, stacked on mobile.
  *
  * Flow:
- *   1. Customer search (or quick-create, or skip as walk-in).
- *   2. Product search → pick qty + price → add to cart.
+ *   1. Required customer search or quick-create.
+ *   2. Product search → add to cart → pick qty + price in cart.
  *      Same product re-added merges qty.
  *   3. Review cart (itemised table + total).
  *   4. Complete → success modal with the generated sales_code.
  *
  * Per FRONTEND_PLAN.md Phase 5:
- *   - Price validation: numeric and present; zero NOT blocked.
+ *   - Price validation: numeric and strictly greater than zero.
  *   - Sale creates a CASH_IN row with reference_type: SALE (handled
  *     inside salesService.completeSale).
  *   - sales_code format S-YYYYMMDD-NNNN generated on complete.
@@ -20,6 +21,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAuth } from '../../hooks/useAuth.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
+import CustomerCreateFields from '../../components/customers/CustomerCreateFields.jsx';
+import { useCustomerDraft } from '../../components/customers/useCustomerDraft.js';
 import { Button } from '../../components/common/index.js';
 import { FormField } from '../../components/common/index.js';
 import { Input } from '../../components/common/index.js';
@@ -44,7 +48,9 @@ import { formatCurrency, timeAgo } from '../../utils/format.js';
 import styles from './NewSalePage.module.css';
 
 function cartLineTotal(item) {
-  return Number(item.qty || 0) * Number(item.price || 0);
+  return item.price === '' || !Number.isFinite(Number(item.price)) || Number(item.price) <= 0
+    ? null
+    : Number(item.qty || 0) * Number(item.price);
 }
 
 export default function NewSalePage() {
@@ -52,7 +58,7 @@ export default function NewSalePage() {
   const { user } = useAuth();
 
   // Customer state
-  const [customer, setCustomer] = useState(null); // { id, name } | null (walk-in)
+  const [customer, setCustomer] = useState(null); // shared customer row | null until selected
   const [customerQuery, setCustomerQuery] = useState('');
   const [customerResults, setCustomerResults] = useState([]);
   const [customerSearching, setCustomerSearching] = useState(false);
@@ -65,6 +71,7 @@ export default function NewSalePage() {
 
   // Cart
   const [cart, setCart] = useState([]);
+  const saleAttemptKey = useRef(null);
 
   // Submit / success
   const [submitting, setSubmitting] = useState(false);
@@ -115,18 +122,14 @@ export default function NewSalePage() {
     };
   }, [productQuery]);
 
+  const cartHasPrices = cart.every((line) => cartLineTotal(line) !== null);
   const cartTotal = useMemo(
-    () => cart.reduce((sum, line) => sum + cartLineTotal(line), 0),
-    [cart],
-  );
-
-  const cartCount = useMemo(
-    () => cart.reduce((sum, line) => sum + Number(line.qty || 0), 0),
+    () => cart.reduce((sum, line) => sum + (cartLineTotal(line) || 0), 0),
     [cart],
   );
 
   function pickCustomer(c) {
-    setCustomer({ id: c.id, name: c.name });
+    setCustomer(c);
     setCustomerQuery('');
     setCustomerResults([]);
   }
@@ -150,9 +153,8 @@ export default function NewSalePage() {
         {
           productId: product.id,
           productName: product.name,
-          sku: product.sku,
           qty: 1,
-          price: Number(product.price || 0),
+          price: '',
           stock: product.stock,
         },
       ];
@@ -170,7 +172,7 @@ export default function NewSalePage() {
   }
 
   function handleCustomerCreated(created) {
-    setCustomer({ id: created.id, name: created.name });
+    setCustomer(created);
     setShowCreate(false);
   }
 
@@ -182,8 +184,11 @@ export default function NewSalePage() {
     }
     setSubmitting(true);
     try {
+      if (!saleAttemptKey.current) {
+        saleAttemptKey.current = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+      }
       const result = await completeSale(
-        { customer, items: cart },
+        { customer, items: cart, idempotencyKey: saleAttemptKey.current },
         { actor: { username: user?.username, role: user?.role } },
       );
       setSuccess(result);
@@ -196,12 +201,13 @@ export default function NewSalePage() {
 
   function handleStartAnother() {
     setSuccess(null);
+    saleAttemptKey.current = null;
     setCart([]);
     setCustomer(null);
     setCustomerQuery('');
     setCustomerResults([]);
     setProductQuery('');
-    setProductResults([]);
+    searchProducts('').then(setProductResults).catch(() => setProductResults([]));
     setError('');
   }
 
@@ -213,11 +219,11 @@ export default function NewSalePage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerText}>
-          <h1 className={styles.title}>New sale</h1>
-          <p className={styles.subtitle}>
-            Search for a customer (or skip for walk-in), add products to the
+          <h1 className={styles.title}><T>New sale</T></h1>
+          <p className={styles.subtitle}><T>
+            Select or create a customer, add products to the
             cart, then review and complete.
-          </p>
+          </T></p>
         </div>
       </header>
 
@@ -257,7 +263,8 @@ export default function NewSalePage() {
             onRemove={removeCartLine}
             submitting={submitting}
             error={error}
-            canComplete={cart.length > 0 && !submitting}
+            canComplete={Boolean(customer) && cart.length > 0 && cartHasPrices && !submitting}
+            cartHasPrices={cartHasPrices}
             onComplete={handleComplete}
           />
         </div>
@@ -302,9 +309,9 @@ function CustomerPane({
         <h2 id="new-sale-customer" className={styles.cardTitle}>
           <span className={styles.cardTitleIcon}>
             <CustomerIcon size={18} strokeWidth={1.75} />
-          </span>
+          </span><T>
           Customer
-        </h2>
+        </T></h2>
         {customer ? (
           <span className={styles.customerChip}>
             {customer.name}
@@ -313,12 +320,12 @@ function CustomerPane({
               className={styles.chipClear}
               onClick={onClearCustomer}
               aria-label="Clear customer"
-            >
+            ><T>
               &times;
-            </button>
+            </T></button>
           </span>
         ) : (
-          <span className={styles.walkinChip}>Walk-in customer</span>
+          <span className={styles.walkinChip}><T>Customer required</T></span>
         )}
       </header>
 
@@ -341,7 +348,7 @@ function CustomerPane({
                 <Spinner size="sm" />
               </div>
             ) : customerResults.length === 0 ? (
-              <p className={styles.resultEmpty}>No matching customers.</p>
+              <p className={styles.resultEmpty}><T>No matching customers.</T></p>
             ) : (
               <ul className={styles.resultList}>
                 {customerResults.map((c) => (
@@ -366,11 +373,12 @@ function CustomerPane({
             <Button
               variant="secondary"
               size="sm"
+              className={styles.newCustomerButton}
               leftIcon={<SparklesIcon size={16} />}
               onClick={onCreateClick}
-            >
+            ><T>
               New customer
-            </Button>
+            </T></Button>
           </div>
         </>
       ) : (
@@ -381,25 +389,25 @@ function CustomerPane({
             </span>
             <div className={styles.pickedHeroText}>
               <span className={styles.pickedHeroName}>{customer.name}</span>
-              <span className={styles.pickedHeroId}>ID #{customer.id}</span>
+              <span className={styles.pickedHeroId}><T>ID #</T>{customer.id}</span>
             </div>
           </div>
 
           <dl className={styles.pickedDetails}>
             <div className={styles.pickedDetail}>
-              <dt className={styles.pickedLabel}>Phone</dt>
+              <dt className={styles.pickedLabel}><T>Phone</T></dt>
               <dd className={styles.pickedValue}>
                 {customer.phone || <span className={styles.muted}>—</span>}
               </dd>
             </div>
             <div className={styles.pickedDetail}>
-              <dt className={styles.pickedLabel}>Address</dt>
+              <dt className={styles.pickedLabel}><T>Address</T></dt>
               <dd className={styles.pickedValue}>
                 {customer.address || <span className={styles.muted}>—</span>}
               </dd>
             </div>
             <div className={styles.pickedDetail}>
-              <dt className={styles.pickedLabel}>Customer ID</dt>
+              <dt className={styles.pickedLabel}><T>Customer ID</T></dt>
               <dd className={styles.pickedValueMuted}>{customer.id}</dd>
             </div>
           </dl>
@@ -414,8 +422,8 @@ function CustomerPane({
 /* ========================================================================== */
 
 function QuickCreateCustomerModal({ onClose, onCreated }) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const { user, role } = useAuth();
+  const form = useCustomerDraft();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -424,7 +432,9 @@ function QuickCreateCustomerModal({ onClose, onCreated }) {
     setErr('');
     setBusy(true);
     try {
-      const created = await createCustomer({ name, phone });
+      const created = await createCustomer(form.draft, {
+        actor: { username: user?.username, role },
+      });
       onCreated(created);
     } catch (error_) {
       setErr(error_?.message || 'Could not create customer.');
@@ -437,47 +447,22 @@ function QuickCreateCustomerModal({ onClose, onCreated }) {
     <Modal
       open
       onClose={busy ? undefined : onClose}
-      title="Quick-create customer"
-      size="sm"
+      title="New customer"
+      size="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
+          <Button variant="secondary" onClick={onClose} disabled={busy}><T>
             Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            loading={busy}
-            loadingText="Creating…"
-          >
+          </T></Button>
+          <Button variant="primary" type="submit" form="sale-customer-form"
+            loading={busy} loadingText="Creating…"><T>
             Create
-          </Button>
+          </T></Button>
         </>
       }
     >
-      <form onSubmit={handleSubmit} className={styles.quickCreate}>
-        <FormField label="Name" required>
-          {(controlProps) => (
-            <Input
-              {...controlProps}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Anika Tabassum"
-              autoFocus
-              required
-            />
-          )}
-        </FormField>
-        <FormField label="Phone (optional)">
-          {(controlProps) => (
-            <Input
-              {...controlProps}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="01XXXXXXXXX"
-            />
-          )}
-        </FormField>
+      <form id="sale-customer-form" onSubmit={handleSubmit} className={styles.quickCreate} noValidate>
+        <CustomerCreateFields form={form} idPrefix="sale-customer" />
         {err ? (
           <p className={styles.modalError} role="alert">
             {err}
@@ -493,6 +478,7 @@ function QuickCreateCustomerModal({ onClose, onCreated }) {
 /* ========================================================================== */
 
 function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
+  const { t } = useLocale();
   const inCartIds = new Set(cart.map((l) => l.productId));
 
   return (
@@ -501,10 +487,10 @@ function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
         <h2 id="new-sale-products" className={styles.cardTitle}>
           <span className={styles.cardTitleIcon}>
             <ProductIcon size={18} strokeWidth={1.75} />
-          </span>
+          </span><T>
           Products
-        </h2>
-        <span className={styles.cardHint}>Tap to add</span>
+        </T></h2>
+        <span className={styles.cardHint}><T>Tap to add</T></span>
       </header>
 
       <FormField label="Search product">
@@ -513,7 +499,7 @@ function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
             {...controlProps}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Name or SKU…"
+            placeholder="Name or product ID…"
           />
         )}
       </FormField>
@@ -526,7 +512,7 @@ function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
         ) : results.length === 0 ? (
           <EmptyState
             title="No matching products"
-            description="Try a different name or SKU."
+            description="Try a different name or product ID."
           />
         ) : (
           <ul className={styles.productList}>
@@ -538,16 +524,13 @@ function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
                     type="button"
                     className={styles.productItem}
                     onClick={() => onAdd(p)}
-                    aria-label={`Add ${p.name} to cart`}
+                    aria-label={`${t('Add')} ${p.name} ${t('to cart')}`}
                   >
                     <span className={styles.productName}>{p.name}</span>
                     <span className={styles.productMeta}>
-                      <span className={styles.productSku}>{p.sku}</span>
-                      <span className={styles.productPrice}>
-                        {formatCurrency(p.price)}
-                      </span>
-                      <span className={styles.productStock}>
-                        Stock: {p.stock}
+                      <span className={styles.productSku}>{p.id}</span>
+                      <span className={styles.productStock}><T>
+                        Stock: </T>{p.stock}
                       </span>
                     </span>
                     <span
@@ -558,7 +541,7 @@ function ProductPane({ query, setQuery, results, searching, onAdd, cart }) {
                         .filter(Boolean)
                         .join(' ')}
                     >
-                      {inCart ? 'In cart' : 'Add'}
+                      {t(inCart ? 'In cart' : 'Add')}
                     </span>
                   </button>
                 </li>
@@ -583,19 +566,21 @@ function CartPane({
   submitting,
   error,
   canComplete,
+  cartHasPrices,
   onComplete,
 }) {
+  const { language, t } = useLocale();
   return (
-    <section className={[styles.card, styles.cartCard].join(' ')} aria-label="Cart">
+    <section className={[styles.card, styles.cartCard].join(' ')} aria-label={t('Cart')}>
       <header className={styles.cardHead}>
         <h2 className={styles.cardTitle}>
           <span className={styles.cardTitleIcon}>
             <SaleIcon size={18} strokeWidth={1.75} />
-          </span>
+          </span><T>
           Cart & review
-        </h2>
+        </T></h2>
         <span className={styles.cardHint}>
-          {cart.length} line{cart.length === 1 ? '' : 's'}
+          {cart.length} {language === 'bn' ? 'লাইন' : cart.length === 1 ? 'line' : 'lines'}
         </span>
       </header>
 
@@ -622,14 +607,14 @@ function CartPane({
                       type="button"
                       className={styles.cartItemRemove}
                       onClick={() => onRemove(line.productId)}
-                      aria-label={`Remove ${line.productName}`}
-                    >
+                      aria-label={`${t('Remove')} ${line.productName}`}
+                    ><T>
                       &times;
-                    </button>
+                    </T></button>
                   </div>
                   <div className={styles.cartItemGrid}>
                     <label className={styles.cartItemField}>
-                      <span className={styles.cartItemFieldLabel}>Qty</span>
+                      <span className={styles.cartItemFieldLabel}><T>Qty</T></span>
                       <Input
                         type="number"
                         size="sm"
@@ -645,25 +630,22 @@ function CartPane({
                       />
                     </label>
                     <label className={styles.cartItemField}>
-                      <span className={styles.cartItemFieldLabel}>Price</span>
+                      <span className={styles.cartItemFieldLabel}><T>Price</T></span>
                       <Input
                         type="number"
                         size="sm"
-                        min={0}
+                        min={0.01}
                         step="0.01"
                         value={line.price}
                         onChange={(e) => {
-                          const next = Number(e.target.value);
-                          onUpdate(line.productId, {
-                            price: Number.isFinite(next) && next >= 0 ? next : 0,
-                          });
+                          onUpdate(line.productId, { price: e.target.value });
                         }}
                       />
                     </label>
                     <div className={styles.cartItemTotal}>
-                      <span className={styles.cartItemFieldLabel}>Line</span>
+                      <span className={styles.cartItemFieldLabel}><T>Total</T></span>
                       <span className={styles.cartItemTotalValue}>
-                        {formatCurrency(lineTotal)}
+                          {lineTotal === null ? '—' : formatCurrency(lineTotal)}
                       </span>
                     </div>
                   </div>
@@ -676,26 +658,28 @@ function CartPane({
 
       <div className={styles.cartFooter}>
         <div className={styles.totalRow}>
-          <span className={styles.totalLabel}>Total</span>
-          <span className={styles.totalValue}>{formatCurrency(total)}</span>
+          <span className={styles.totalLabel}><T>Total</T></span>
+          <span className={styles.totalValue}>{cartHasPrices ? formatCurrency(total) : '—'}</span>
         </div>
+        {!cartHasPrices ? <p className={styles.priceHint}><T>Enter a selling price for each item.</T></p> : null}
         {error ? (
           <p className={styles.cartError} role="alert">
-            {error}
+            <T>{error}</T>
           </p>
         ) : null}
         <Button
           variant="primary"
           fullWidth
           size="lg"
+          className={styles.completeButton}
           leftIcon={<SparklesIcon size={16} />}
           onClick={onComplete}
           disabled={!canComplete}
           loading={submitting}
           loadingText="Completing…"
-        >
+        ><T>
           Complete sale
-        </Button>
+        </T></Button>
       </div>
     </section>
   );
@@ -715,15 +699,15 @@ function SuccessModal({ result, onClose, onAnother, onView }) {
       size="md"
       footer={
         <>
-          <Button variant="ghost" onClick={onAnother}>
+          <Button variant="ghost" onClick={onAnother}><T>
             Start another
-          </Button>
-          <Button variant="secondary" onClick={onView}>
+          </T></Button>
+          <Button variant="secondary" onClick={onView}><T>
             View sale
-          </Button>
-          <Button variant="primary" onClick={onClose}>
+          </T></Button>
+          <Button variant="primary" onClick={onClose}><T>
             Done
-          </Button>
+          </T></Button>
         </>
       }
     >
@@ -732,22 +716,22 @@ function SuccessModal({ result, onClose, onAnother, onView }) {
           <SparklesIcon size={28} strokeWidth={1.75} />
         </div>
         <h3 className={styles.successTitle}>{sale.salesCode}</h3>
-        <p className={styles.successSubtitle}>
-          Recorded {timeAgo(sale.createdAt)} &middot; cash-in{' '}
-          <code>{cashIn.id}</code>
+        <p className={styles.successSubtitle}><T>
+          Recorded </T>{timeAgo(sale.createdAt)}
+          {cashIn ? <><T> &middot; cash-in </T><code>{cashIn.id}</code></> : null}
         </p>
 
         <dl className={styles.successSummary}>
           <div className={styles.successRow}>
-            <dt>Customer</dt>
+            <dt><T>Customer</T></dt>
             <dd>{sale.customerName}</dd>
           </div>
           <div className={styles.successRow}>
-            <dt>Items</dt>
+            <dt><T>Items</T></dt>
             <dd>{sale.items.length}</dd>
           </div>
           <div className={styles.successRow}>
-            <dt>Total</dt>
+            <dt><T>Total</T></dt>
             <dd className={styles.successTotal}>{formatCurrency(sale.total)}</dd>
           </div>
         </dl>

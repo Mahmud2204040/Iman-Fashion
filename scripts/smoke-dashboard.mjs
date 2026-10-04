@@ -11,7 +11,8 @@ import { dirname, join, extname } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = join(__dirname, '..', 'dist');
-const PORT = 4174;
+// Let the OS choose an available port; Windows may reserve fixed dev ports.
+const PORT = 0;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -44,16 +45,17 @@ async function serve(pathname) {
 }
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const url = new URL(req.url, 'http://localhost');
   const { status, data, type } = await serve(url.pathname);
   res.writeHead(status, { 'Content-Type': type });
   res.end(data);
 });
 
 await new Promise((r) => server.listen(PORT, r));
+const activePort = server.address().port;
 
 async function expect(label, urlPath, asserts) {
-  const res = await fetch(`http://localhost:${PORT}${urlPath}`);
+  const res = await fetch(`http://localhost:${activePort}${urlPath}`);
   const body = await res.text();
   const ok = asserts.every((a) => a(body, res));
   console.log(`${ok ? '✓' : '✗'} ${label} [${urlPath}] -> ${res.status}`);

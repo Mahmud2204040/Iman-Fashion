@@ -1,63 +1,42 @@
-# NI Fashion — Frontend
+# NI Fashion
 
-Mobile-responsive web application for **NI Fashion**, a clothing shop that sells school and college dresses and accessories (Shirt, Pant, Salwar, Kamiz, Orna, Frock, Shoe, Bag, etc.). The shop also manufactures some of its own clothing products.
+NI Fashion is an internal clothing-shop management application for an Owner and Employees.
 
-> **Status:** Phase 0 — Project setup only.
-> This phase contains **only** the Vite + React scaffold. No business modules, no auth, no backend.
+**Current state:** React/Vite login, session restore, sign-out, profile passwords and Owner-managed Employee accounts use the Express/Prisma API in [`api/`](api/README.md). The backend has first-pass business APIs, migrations and local database tests; sales, customers, stock, cash and report screens still use in-memory mock services rather than those APIs. Hosted deployment and real-data acceptance remain open.
 
----
+Start with [the documentation index](document/README.md). It contains the current requirements, workflows, permissions, schema, delivery plan and known implementation gaps. Documentation completion does not mean the application is complete.
 
-## Stack
+## Run locally
 
-- React 18
-- Vite 5
-- JavaScript (no TypeScript)
-- CSS Modules / plain CSS
-- `react-router-dom` (the only runtime dependency installed)
+~~~sh
+npm install
+npm run dev
+npm run lint
+npm run build
+~~~
 
-No UI, state, icon, animation, or utility libraries have been added.
+Use `npm ci` for a reproducible installation from the lockfile. Start PostgreSQL and the API using the [API local setup](api/README.md) before signing in. Bootstrap an Owner with your own password; the old `owner / 1234` and `employee / 1234` mock credentials do not work in the active frontend. The frontend defaults to an API on the same hostname at port `4440`; override it at build time with `VITE_API_BASE_URL` if needed.
 
-## Scripts
+## Run the current Docker frontend
 
-```bash
-npm install      # install dependencies
-npm run dev      # start Vite dev server
-npm run build    # production build
-npm run preview  # preview the production build
-npm run lint     # run ESLint
-```
+~~~sh
+docker compose up --build -d
+docker compose ps
+docker compose logs web
+docker compose down
+~~~
 
-## Project layout
+Open [the local application](http://127.0.0.1:8080). Docker serves the compiled frontend only; PostgreSQL and the API must be started separately. Business data still uses mock services. Rebuild the image after source changes. For a different API address, pass `VITE_API_BASE_URL` during the frontend build (Vite embeds it into the bundle).
 
-```text
-.
-├── index.html
-├── package.json
-├── vite.config.js
-├── eslint.config.js
-├── .gitignore
-├── README.md
-└── src/
-    ├── main.jsx
-    ├── App.jsx
-    └── styles/
-        └── global.css
-```
+## Project map
 
-The full `src/` tree (components, pages, layouts, routes, hooks, services, utils, constants, mock) will be created in **Phase 1 — Frontend Architecture**.
+| Path | Purpose |
+| --- | --- |
+| `document/` | Active project documentation |
+| `document/archive/` | Historical specifications and reports; not current authority |
+| `src/` | Frontend pages, components, routes, services and mock data |
+| `api/` | Express/Prisma auth, business APIs, reporting, receipt handling and migrations |
+| `scripts/` | Existing mock business-service smoke tests; the legacy auth smoke test does not exercise API login |
+| `Dockerfile`, `compose.yaml`, `docker/` | Current frontend container |
 
-## Planning documents
-
-All decisions and scope are governed by the following documents, in this priority order:
-
-1. `PROJECT_RULES.md` — engineering constitution (highest priority).
-2. `REQUIREMENTS.md` — software requirements specification.
-3. `DATABASE_PLAN.md` — database schema (relevant once backend starts).
-4. `FRONTEND_PLAN.md` — phase-by-phase frontend plan that drives this implementation.
-
-## What is intentionally NOT here yet
-
-- No backend, no database, no Prisma, no Express.
-- No authentication implementation (mock auth lands in Phase 3).
-- No routing beyond what Vite needs.
-- No dashboard, no sales, no business modules (Phases 4+).
+See [Project Status](document/PROJECT_STATUS.md) for verified versus unverified work and [Implementation Plan](document/IMPLEMENTATION_PLAN.md) for the next milestones.

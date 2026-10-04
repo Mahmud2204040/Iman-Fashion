@@ -1,0 +1,94 @@
+.page {
+  width: 100%;
+  padding: 24px 0 36px;
+  color: var(--nf-ink, #171817);
+}
+
+.pageHeading { margin-bottom: 24px; }
+.eyebrow { display: block; margin-bottom: 7px; color: var(--nf-muted, #74786f); font-size: 13px; font-weight: 600; }
+.pageHeading h1 { margin: 0; font-size: clamp(29px, 3vw, 34px); line-height: 1.16; letter-spacing: -0.035em; }
+.pageHeading p { margin: 8px 0 0; color: var(--nf-muted, #74786f); font-size: 14px; line-height: 1.5; }
+
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--nf-border, #e4e0d6);
+  border-radius: 20px;
+  background: var(--nf-surface, #fffdf8);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+}
+.createSection { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 416px); align-items: center; gap: 32px; padding: 24px; }
+.sectionIntro h2, .rosterHeading h2 { margin: 0; font-size: 18px; font-weight: 650; line-height: 1.3; }
+.sectionIntro p { margin: 7px 0 0; color: var(--nf-muted, #74786f); font-size: 13px; line-height: 1.5; }
+.createForm { margin-top: 20px; }
+.createForm label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+.createControls { display: flex; gap: 12px; }
+.createControls input, .editForm input {
+  width: 100%; min-width: 0; height: 46px; padding: 0 14px;
+  border: 1px solid var(--nf-border, #e4e0d6); border-radius: 12px;
+  background: #fff; color: var(--nf-ink, #171817); font: inherit; font-size: 14px;
+}
+.createControls input::placeholder { color: #a3a79e; }
+.createControls input:focus, .editForm input:focus { outline: 2px solid #a6d944; outline-offset: 1px; }
+.primaryAction { display: inline-flex; align-items: center; justify-content: center; gap: 9px; flex: none; min-height: 46px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--nf-ink, #171817); color: #fff; font-size: 13px; font-weight: 650; white-space: nowrap; }
+.primaryAction span { color: var(--nf-lime, #c7f36b); font-size: 19px; line-height: 1; }
+.primaryAction:hover:not(:disabled) { background: #30332c; }
+.primaryAction:disabled { opacity: .6; cursor: not-allowed; }
+
+.demoNotice { padding: 20px; border: 1px solid #f0e3b6; border-radius: 16px; background: #fff9e8; }
+.demoNoticeTitle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; }
+.infoMark { display: grid; place-items: center; width: 18px; height: 18px; border: 1px solid #73613c; border-radius: 50%; color: #73613c; font-size: 11px; }
+.demoNotice p { margin: 10px 0 0; color: #73613c; font-size: 13px; line-height: 1.65; }
+.demoNotice strong { color: var(--nf-ink, #171817); }
+
+.roster { border-top: 1px solid var(--nf-border, #e4e0d6); }
+.rosterHeading { display: flex; align-items: center; gap: 10px; min-height: 72px; padding: 20px 24px; }
+.countBadge { padding: 4px 8px; border-radius: 6px; background: #f6f3ec; color: var(--nf-muted, #74786f); font-size: 11px; font-weight: 600; }
+.tableHeader, .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 340px) minmax(190px, 216px); align-items: center; gap: 24px; padding: 0 24px; }
+.tableHeader { min-height: 42px; border-block: 1px solid var(--nf-border, #e4e0d6); background: #f6f3ec; color: var(--nf-muted, #74786f); font-size: 12px; font-weight: 600; }
+.tableHeader span:last-child { text-align: right; }
+.list { margin: 0; padding: 0; list-style: none; }
+.row { min-height: 94px; padding-top: 18px; padding-bottom: 18px; border-bottom: 1px solid var(--nf-border, #e4e0d6); }
+.identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.identity strong { overflow: hidden; color: var(--nf-ink, #171817); font-size: 14px; font-weight: 650; text-overflow: ellipsis; }
+.avatar { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border: 1px solid var(--nf-border, #e4e0d6); border-radius: 12px; background: #f6f3ec; font-size: 14px; font-weight: 700; }
+.editForm { flex: 1; min-width: 0; }
+.editForm input { height: 38px; }
+.status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.statusBadge { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 650; line-height: 1.1; white-space: nowrap; }
+.statusBadge img { display: block; flex: none; }
+.active { background: #edf6f1; color: #267356; }
+.inactive { background: #fff0e8; color: #a5532b; }
+.inactiveDot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.statusDetail { color: var(--nf-muted, #74786f); font-size: 13px; }
+.actions { display: flex; justify-content: flex-end; gap: 12px; }
+.secondaryAction, .dangerAction { min-height: 38px; padding: 0 16px; border: 1px solid var(--nf-border, #e4e0d6); border-radius: 12px; background: #fff; color: var(--nf-ink, #171817); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.secondaryAction:hover:not(:disabled) { background: #f6f3ec; }
+.dangerAction { border-color: #eac7c7; background: transparent; color: #c44d4d; }
+.dangerAction:hover:not(:disabled) { background: #fff1f1; }
+.secondaryAction:disabled, .dangerAction:disabled { opacity: .55; cursor: not-allowed; }
+.rosterFooter { margin: 0; padding: 16px 24px; color: var(--nf-muted, #74786f); font-size: 12px; line-height: 1.5; }
+.loading, .empty { display: flex; align-items: center; gap: 10px; min-height: 90px; margin: 0; padding: 24px; color: var(--nf-muted, #74786f); font-size: 13px; }
+.error, .notice { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 12px 16px; border-radius: 10px; font-size: 13px; }
+.error { background: #fff0ed; color: #a54039; }
+.notice { background: #edf6f1; color: #267356; }
+.error button { border: 0; background: none; color: inherit; font-weight: 700; text-decoration: underline; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+
+@media (max-width: 960px) {
+  .createSection { grid-template-columns: 1fr; gap: 20px; }
+  .demoNotice { max-width: none; }
+  .tableHeader, .row { grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) minmax(170px, 200px); gap: 12px; }
+}
+
+@media (max-width: 700px) {
+  .page { padding: 20px 0 32px; }
+  .createSection { padding: 18px; }
+  .createControls { flex-direction: column; }
+  .primaryAction { width: 100%; }
+  .rosterHeading { min-height: 62px; padding: 16px 18px; }
+  .tableHeader { display: none; }
+  .row { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
+  .status { padding-left: 56px; }
+  .actions { justify-content: flex-start; padding-left: 56px; }
+  .rosterFooter { padding: 16px 18px; }
+}

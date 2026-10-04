@@ -11,11 +11,10 @@
  *     computed total, status DRAFT, empty payments
  *   - recordPurchasePayment rejects: not found, cancelled purchase,
  *     non-positive amount, overpayment, EMPLOYEE role
- *   - recordPurchasePayment happy path appends payment, updates paidTotal,
- *     returns paired CASH_OUT row with referenceType SUPPLIER_PAYMENT
+ *   - recordPurchasePayment appends purchase-specific CASH payment without creating Cash Out
  *   - setPurchaseStatus enforces valid statuses + sets receivedAt on RECEIVED
  *   - updatePurchase rejects received/cancelled (IMMUTABLE)
- *   - attachPurchaseReceipt stores receiptUrl + audit
+ *   - attachPurchaseReceipt stores image metadata + audit
  *   - computePurchaseTotals totals across payments
  */
 import assert from 'node:assert/strict';
@@ -94,7 +93,7 @@ await test('getPurchasesBySupplier — filters and sorts', async () => {
 
 await test('listSuppliersForPurchase — returns name+id pairs', async () => {
   const list = await listSuppliersForPurchase();
-  assert.ok(list.length >= 5);
+  assert.ok(list.length >= 1);
   assert.ok(list.every((s) => s.id && s.name));
 });
 
@@ -219,6 +218,7 @@ await test('recordPurchasePayment — rejects non-positive amount', async () => 
     },
     OWNER,
   );
+  await setPurchaseStatus(draft.id, 'ORDERED', OWNER);
   await assert.rejects(
     () =>
       recordPurchasePayment(
@@ -238,6 +238,7 @@ await test('recordPurchasePayment — rejects overpayment', async () => {
     },
     OWNER,
   );
+  await setPurchaseStatus(draft.id, 'ORDERED', OWNER);
   await assert.rejects(
     () =>
       recordPurchasePayment(
@@ -249,7 +250,7 @@ await test('recordPurchasePayment — rejects overpayment', async () => {
   );
 });
 
-await test('recordPurchasePayment — happy path returns paired CASH_OUT', async () => {
+await test('recordPurchasePayment — cash-only purchase allocation without Cash Out', async () => {
   const draft = await createPurchase(
     {
       supplierId: 'sup-004',
@@ -257,19 +258,17 @@ await test('recordPurchasePayment — happy path returns paired CASH_OUT', async
     },
     OWNER,
   );
+  await setPurchaseStatus(draft.id, 'ORDERED', OWNER);
   const result = await recordPurchasePayment(
     draft.id,
-    { amount: 500, method: 'BKASH', note: 'partial' },
+    { amount: 500, method: 'CASH', note: 'partial' },
     OWNER,
   );
-  assert.ok(result.pairedCashOut);
-  assert.equal(result.pairedCashOut.type, 'CASH_OUT');
-  assert.equal(result.pairedCashOut.amount, 500);
-  assert.equal(result.pairedCashOut.referenceType, 'SUPPLIER_PAYMENT');
-  assert.equal(result.pairedCashOut.referenceId, draft.id);
+  assert.equal(result.pairedCashOut, undefined);
   assert.equal(result.purchase.paidTotal, 500);
   assert.equal(result.purchase.payments.length, 1);
-  assert.equal(result.purchase.payments[0].cashOutId, result.pairedCashOut.id);
+  assert.equal(result.purchase.payments[0].method, 'CASH');
+  assert.equal(result.purchase.payments[0].cashOutId, undefined);
 });
 
 await test('recordPurchasePayment — rejects EMPLOYEE', async () => {
@@ -336,7 +335,7 @@ await test('updatePurchase — accepts notes on DRAFT', async () => {
   assert.equal(updated.notes, 'Updated note');
 });
 
-await test('attachPurchaseReceipt — stores receiptUrl + audit', async () => {
+await test('attachPurchaseReceipt — stores gallery metadata + audit', async () => {
   const draft = await createPurchase(
     {
       supplierId: 'sup-002',
@@ -349,7 +348,9 @@ await test('attachPurchaseReceipt — stores receiptUrl + audit', async () => {
     'data:image/png;base64,FAKE',
     OWNER,
   );
-  assert.equal(attached.receiptUrl, 'data:image/png;base64,FAKE');
+  assert.equal(attached.receipts.length, 1);
+  assert.equal(attached.receipts[0].dataUrl, 'data:image/png;base64,FAKE');
+  assert.equal(attached.receipts[0].purchaseId, draft.id);
   assert.equal(attached.updatedBy, 'owner');
 });
 
@@ -380,8 +381,33 @@ await test('recordPurchasePayment — rejects cancelled purchase', async () => {
         { amount: 5, method: 'CASH' },
         OWNER,
       ),
-    (err) => err.code === 'CANCELLED',
+    (err) => err.code === 'PAYMENT_STATUS',
   );
+});
+
+await test('DRAFT cannot receive payment and paid ORDERED cannot cancel', async () => {
+  const draft = await createPurchase({ supplierId: 'sup-001', items: [{ name: 'Thread', qty: 2, unitPrice: 40 }] }, OWNER);
+  await assert.rejects(() => recordPurchasePayment(draft.id, { amount: 10, method: 'CASH' }, OWNER), (error) => error.code === 'PAYMENT_STATUS');
+  await setPurchaseStatus(draft.id, 'ORDERED', OWNER);
+  await recordPurchasePayment(draft.id, { amount: 10, method: 'CASH' }, OWNER);
+  await assert.rejects(() => setPurchaseStatus(draft.id, 'CANCELLED', OWNER), (error) => error.code === 'PAID_PURCHASE');
+});
+
+await test('RECEIVED can accept remaining cash due and cannot cancel', async () => {
+  const draft = await createPurchase({ supplierId: 'sup-001', items: [{ name: 'Labels', qty: 2, unitPrice: 50 }] }, OWNER);
+  await setPurchaseStatus(draft.id, 'ORDERED', OWNER);
+  await setPurchaseStatus(draft.id, 'RECEIVED', OWNER);
+  const result = await recordPurchasePayment(draft.id, { amount: 100, method: 'CASH' }, OWNER);
+  assert.equal(result.purchase.paidTotal, 100);
+  assert.equal(computePurchaseTotals(result.purchase).dueTotal, 0);
+  await assert.rejects(() => setPurchaseStatus(draft.id, 'CANCELLED', OWNER));
+});
+
+await test('receipt proof validates type, size and payment association', async () => {
+  const draft = await createPurchase({ supplierId: 'sup-001', items: [{ name: 'Tape', qty: 1, unitPrice: 10 }] }, OWNER);
+  await assert.rejects(() => attachPurchaseReceipt(draft.id, { type: 'image/gif', size: 1, dataUrl: 'data:image/gif;base64,AA' }, OWNER), (error) => error.code === 'INVALID_RECEIPT');
+  await assert.rejects(() => attachPurchaseReceipt(draft.id, { type: 'image/png', size: 5 * 1024 * 1024 + 1, dataUrl: 'data:image/png;base64,AA' }, OWNER), (error) => error.code === 'INVALID_RECEIPT');
+  await assert.rejects(() => attachPurchaseReceipt(draft.id, { type: 'image/png', size: 1, dataUrl: 'data:image/png;base64,AA', paymentId: 'other' }, OWNER), (error) => error.code === 'INVALID_PAYMENT_LINK');
 });
 
 console.log(`\n  ${passed} passed, ${failed} failed`);

@@ -2,16 +2,21 @@
  * customerService — Phase 6 mock.
  *
  * Owns the customer catalogue and per-customer tab data. Implements
- * the Phase 6 contract from FRONTEND_PLAN.md:
+ * the Phase 6 contract from FRONTEND_PLAN.md and aligns to the
+ * DATABASE_PLAN.md schema (§8 customers, §9 children):
  *
- *   - Profile (id, name, phone, address, status, audit, derived class)
+ *   - Profile: customer_code (CUS-000001), name, phone, address,
+ *     notes, status (active/inactive), audit timestamps
  *   - Sales History (recent sales for this customer)
  *   - Custom Orders (recent custom orders for this customer)
  *   - Due Summary (running balance / open dues)
- *   - Children with derived current class from initial_class +
- *     years_since(created_at)
+ *   - Children (school uniform programme): name, initial class,
+ *     school_name, registered_date, with derived
+ *     current class from initial_class + years_since(registered_date)
  *   - No delete — status toggle (isActive)
- *   - Audit columns: created_by / updated_by
+ *
+ * Note: "class" is a child-level concept (school uniform programme),
+ * NOT a customer-level field. Customers do not have a class.
  *
  * The due summary uses a flat "paid vs due" model: each sale / custom
  * order contributes an entry. The frontend doesn't model payment
@@ -21,8 +26,44 @@
  * Real backend will replace this file entirely.
  */
 import { ROLES } from '../../constants/roles.js';
-import { deriveCurrentClass } from '../../utils/customer.js';
+import { deriveCurrentClass, shopDate } from '../../utils/customer.js';
 import { delay } from '../delay.js';
+
+/* -------------------------------------------------------------------------- */
+/* Customer-code helpers                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Format a numeric sequence as a customer code, e.g. 1 -> "CUS-000001".
+ * The DATABASE_PLAN.md contract is CUS-NNNNNN (6-digit zero-padded).
+ */
+function formatCustomerCode(n) {
+  return `CUS-${String(n).padStart(6, '0')}`;
+}
+
+/**
+ * Compute the next customer code by scanning existing customers and
+ * picking max(numeric suffix) + 1. Falls back to 1 for an empty list.
+ */
+function nextCustomerCode() {
+  let max = 0;
+  for (const c of CUSTOMERS) {
+    const m = String(c.customerCode || '').match(/^CUS-(\d+)$/);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+  }
+  return formatCustomerCode(max + 1);
+}
+
+/**
+ * Read-only preview of the next customer code (e.g. for the create form).
+ * Safe to call repeatedly — does NOT consume a slot.
+ */
+export function peekNextCustomerCode() {
+  return nextCustomerCode();
+}
 
 /* -------------------------------------------------------------------------- */
 /* Mock catalogues                                                              */
@@ -31,10 +72,11 @@ import { delay } from '../delay.js';
 const CUSTOMERS = [
   {
     id: 'cust-001',
+    customerCode: 'CUS-000001',
     name: 'Anika Tabassum',
     phone: '01711-200104',
     address: 'House 12, Road 7, Banani, Dhaka',
-    initialClass: 'A',
+    notes: 'Prefers Banani branch pickup. Mother of two school kids. Sara needs a long-sleeve white shirt.',
     isActive: true,
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -45,10 +87,11 @@ const CUSTOMERS = [
   },
   {
     id: 'cust-002',
+    customerCode: 'CUS-000002',
     name: 'Tahmid Hossain',
     phone: '01815-771234',
     address: 'Flat 3B, Lalmatia, Dhaka',
-    initialClass: 'B',
+    notes: 'Tasnim prefers cotton blend; sensitive to polyester.',
     isActive: true,
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -59,10 +102,11 @@ const CUSTOMERS = [
   },
   {
     id: 'cust-003',
+    customerCode: 'CUS-000003',
     name: 'Mst. Rafa',
     phone: '01933-445566',
     address: 'Sector 7, Uttara, Dhaka',
-    initialClass: 'A',
+    notes: 'Allergic to certain dyes — confirm before dye jobs.',
     isActive: true,
     createdBy: 'employee',
     createdByRole: ROLES.EMPLOYEE,
@@ -73,10 +117,11 @@ const CUSTOMERS = [
   },
   {
     id: 'cust-004',
+    customerCode: 'CUS-000004',
     name: 'Sabbir Ahmed',
     phone: '01678-901234',
     address: 'Mirpur 10, Dhaka',
-    initialClass: 'C',
+    notes: 'Buys in bulk before Eid. Offer 5% discount on 3+ items.',
     isActive: true,
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -87,10 +132,11 @@ const CUSTOMERS = [
   },
   {
     id: 'cust-005',
+    customerCode: 'CUS-000005',
     name: 'Nusrat Jahan',
     phone: '01755-321098',
     address: 'Gulshan 2, Dhaka',
-    initialClass: 'A',
+    notes: 'Account paused at her request — pending address change.',
     isActive: false, // toggled inactive
     createdBy: 'owner',
     createdByRole: ROLES.OWNER,
@@ -101,10 +147,11 @@ const CUSTOMERS = [
   },
   {
     id: 'cust-006',
+    customerCode: 'CUS-000006',
     name: 'Riyad Karim',
     phone: '01515-909090',
     address: 'Dhanmondi 15, Dhaka',
-    initialClass: 'B',
+    notes: '',
     isActive: true,
     createdBy: 'employee',
     createdByRole: ROLES.EMPLOYEE,
@@ -115,144 +162,103 @@ const CUSTOMERS = [
   },
 ];
 
-/* Children of each customer (school uniform programme example). */
+/* Children of each customer (school uniform programme example).
+ * Schema per DATABASE_PLAN.md §9:
+ *   id, customer_id, name, initial_class, school_name, registered_date.
+ * The derived `currentClass` is computed at read time. */
 const CHILDREN = [
   {
     id: 'kid-001',
     customerId: 'cust-001',
     name: 'Sara Tabassum',
     initialClass: '3',
+    schoolName: 'Dhaka International School',
+    registeredDate: '2024-06-12',
+    createdBy: 'owner', createdByRole: ROLES.OWNER,
+    updatedBy: 'owner', updatedByRole: ROLES.OWNER,
     createdAt: '2024-06-12T09:05:00Z',
+    updatedAt: '2024-06-12T09:05:00Z',
   },
   {
     id: 'kid-002',
     customerId: 'cust-001',
     name: 'Adnan Tabassum',
     initialClass: '1',
+    schoolName: 'Dhaka International School',
+    registeredDate: '2025-01-10',
+    createdBy: 'owner', createdByRole: ROLES.OWNER,
+    updatedBy: 'owner', updatedByRole: ROLES.OWNER,
     createdAt: '2025-01-10T09:05:00Z',
+    updatedAt: '2025-01-10T09:05:00Z',
   },
   {
     id: 'kid-003',
     customerId: 'cust-002',
     name: 'Tasnim Hossain',
     initialClass: '5',
+    schoolName: 'Lalmatia Girls School',
+    registeredDate: '2024-09-04',
+    createdBy: 'owner', createdByRole: ROLES.OWNER,
+    updatedBy: 'owner', updatedByRole: ROLES.OWNER,
     createdAt: '2024-09-04T10:35:00Z',
+    updatedAt: '2024-09-04T10:35:00Z',
   },
   {
     id: 'kid-004',
     customerId: 'cust-003',
     name: 'Aariz Rafa',
     initialClass: '2',
+    schoolName: 'Uttara Model School',
+    registeredDate: '2025-01-22',
+    createdBy: 'employee', createdByRole: ROLES.EMPLOYEE,
+    updatedBy: 'employee', updatedByRole: ROLES.EMPLOYEE,
     createdAt: '2025-01-22T14:20:00Z',
+    updatedAt: '2025-01-22T14:20:00Z',
   },
 ];
-
-/* Linked sales — per-customer summary (subset of salesService.SALES_LOG). */
-const SALES_BY_CUSTOMER = {
-  'cust-001': [
-    {
-      id: 'sale-101',
-      salesCode: 'S-20250905-0007',
-      total: 2350,
-      createdAt: '2025-09-05T11:20:00Z',
-      itemCount: 2,
-    },
-  ],
-  'cust-002': [
-    {
-      id: 'sale-102',
-      salesCode: 'S-20250831-0009',
-      total: 2300,
-      createdAt: '2025-08-31T18:42:00Z',
-      itemCount: 2,
-    },
-  ],
-  'cust-003': [
-    {
-      id: 'sale-103',
-      salesCode: 'S-20250908-0002',
-      total: 1850,
-      createdAt: '2025-09-08T10:00:00Z',
-      itemCount: 1,
-    },
-  ],
-  'cust-004': [
-    {
-      id: 'sale-104',
-      salesCode: 'S-20250901-0012',
-      total: 1240,
-      createdAt: '2025-09-01T09:02:00Z',
-      itemCount: 2,
-    },
-  ],
-  'cust-005': [
-    {
-      id: 'sale-105',
-      salesCode: 'S-20250831-0008',
-      total: 2350,
-      createdAt: '2025-08-31T15:10:00Z',
-      itemCount: 1,
-    },
-  ],
-  'cust-006': [],
-};
-
-/* Linked custom orders (Phase 7 shape preview). */
-const CUSTOM_ORDERS_BY_CUSTOMER = {
-  'cust-001': [
-    {
-      id: 'co-201',
-      code: 'CO-20250910-0001',
-      title: 'Three-piece (georgette) — custom fit',
-      total: 4200,
-      status: 'IN_PROGRESS',
-      due: 1200,
-      createdAt: '2025-09-10T14:30:00Z',
-    },
-  ],
-  'cust-002': [],
-  'cust-003': [
-    {
-      id: 'co-202',
-      code: 'CO-20250909-0001',
-      title: 'Panjabi (cotton) — embroidered',
-      total: 1850,
-      status: 'READY',
-      due: 0,
-      createdAt: '2025-09-09T09:15:00Z',
-    },
-  ],
-  'cust-004': [],
-  'cust-005': [
-    {
-      id: 'co-203',
-      code: 'CO-20250907-0001',
-      title: 'Two-piece (silk)',
-      total: 5800,
-      status: 'DELIVERED',
-      due: 800,
-      createdAt: '2025-09-07T16:45:00Z',
-    },
-  ],
-  'cust-006': [],
-};
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function decorateCustomer(c, now = new Date()) {
-  return {
-    ...c,
-    currentClass: deriveCurrentClass(c.initialClass, c.createdAt, now),
-  };
+function decorateCustomer(c) {
+  // Customers themselves do not have a class — class is a child-level
+  // concept (school uniform programme). Return the row untouched.
+  return { ...c };
 }
 
 function decorateChild(kid, now = new Date()) {
+  // The "current class" of a child is derived from initial_class plus
+  // the completed calendar years elapsed since registered_date only.
   return {
     ...kid,
-    currentClass: deriveCurrentClass(kid.initialClass, kid.createdAt, now),
+    currentClass: deriveCurrentClass(kid.initialClass, kid.registeredDate, now),
   };
+}
+
+function validateChild(payload, index) {
+  const name = String(payload?.name || '').trim();
+  const initialClass = String(payload?.initialClass || '').trim();
+  const schoolName = String(payload?.schoolName || '').trim();
+  const registeredDate = String(payload?.registeredDate || '').trim() || shopDate();
+  if (!name) {
+    const error = new Error(`Child #${index}: name is required. Fill the row or remove it.`);
+    error.code = 'CHILD_EMPTY_NAME';
+    throw error;
+  }
+  if (!initialClass || !schoolName) {
+    const error = new Error(`Child #${index}: initial class and school are required.`);
+    error.code = 'CHILD_REQUIRED_FIELDS';
+    throw error;
+  }
+  const parsed = new Date(`${registeredDate}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(registeredDate) ||
+      Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== registeredDate) {
+    const error = new Error(`Child #${index}: registered date is invalid.`);
+    error.code = 'CHILD_INVALID_DATE';
+    throw error;
+  }
+  return { name, initialClass, schoolName, registeredDate };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -267,6 +273,7 @@ export async function getCustomers(query = '') {
   return all.filter(
     (c) =>
       c.name.toLowerCase().includes(q) ||
+      c.customerCode.toLowerCase().includes(q) ||
       (c.phone || '').toLowerCase().includes(q) ||
       (c.address || '').toLowerCase().includes(q),
   );
@@ -293,14 +300,28 @@ export async function createCustomer(payload = {}, { actor } = {}) {
     err.code = 'NAME_TOO_SHORT';
     throw err;
   }
+  if (!phone) {
+    const err = new Error('Customer phone is required.');
+    err.code = 'EMPTY_PHONE';
+    throw err;
+  }
+
+  // Optional inline children (Phase 4b atomic create-with-children).
+  // Validate every child up-front so we never persist a partial batch:
+  // if any child is invalid, the whole customer creation is rejected.
+  const rawChildren = Array.isArray(payload.children) ? payload.children : [];
+  const validatedChildren = rawChildren.map((child, index) => validateChild(child, index + 1));
+
   const id = `cust-${String(CUSTOMERS.length + 1).padStart(3, '0')}`;
+  const customerCode = nextCustomerCode();
   const now = new Date().toISOString();
   const created = {
     id,
+    customerCode,
     name,
     phone,
     address: String(payload.address || '').trim(),
-    initialClass: String(payload.initialClass || '').trim(),
+    notes: String(payload.notes || '').trim(),
     isActive: true,
     createdBy: actor?.username || 'unknown',
     createdByRole: actor?.role || null,
@@ -310,11 +331,39 @@ export async function createCustomer(payload = {}, { actor } = {}) {
     updatedAt: now,
   };
   CUSTOMERS.push(created);
+
+  // Persist the inline children now that the parent id exists. The
+  // CHILDREN.push happens inside this single delay() call so the entire
+  // create is atomic from the consumer's point of view.
+  for (const k of validatedChildren) {
+    const kidId = `kid-${String(CHILDREN.length + 1).padStart(3, '0')}`;
+    CHILDREN.push({
+      id: kidId,
+      customerId: id,
+      name: k.name,
+      initialClass: k.initialClass,
+      schoolName: k.schoolName,
+      registeredDate: k.registeredDate,
+      createdBy: actor?.username || 'unknown',
+      createdByRole: actor?.role || null,
+      updatedBy: actor?.username || 'unknown',
+      updatedByRole: actor?.role || null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
   return decorateCustomer(created);
 }
 
 export async function updateCustomer(id, patch = {}, { actor } = {}) {
   await delay(120);
+  if (actor?.role !== ROLES.OWNER && actor?.role !== ROLES.EMPLOYEE) {
+    const err = new Error('Customer access required.'); err.code = 'FORBIDDEN_ROLE'; throw err;
+  }
+  if (patch.isActive !== undefined && actor.role !== ROLES.OWNER) {
+    const err = new Error('Only an owner can change customer status.'); err.code = 'FORBIDDEN_ROLE'; throw err;
+  }
   const idx = CUSTOMERS.findIndex((c) => c.id === id);
   if (idx === -1) {
     const err = new Error(`Customer ${id} not found.`);
@@ -324,12 +373,19 @@ export async function updateCustomer(id, patch = {}, { actor } = {}) {
   const before = CUSTOMERS[idx];
   const next = {
     ...before,
-    ...patch,
+    name: patch.name === undefined ? before.name : String(patch.name || '').trim(),
+    phone: patch.phone === undefined ? before.phone : String(patch.phone || '').trim(),
+    address: patch.address === undefined ? before.address : String(patch.address || '').trim(),
+    notes: patch.notes === undefined ? before.notes : String(patch.notes || '').trim(),
+    isActive: patch.isActive === undefined ? before.isActive : Boolean(patch.isActive),
     id: before.id, // id is immutable
     updatedBy: actor?.username || 'unknown',
     updatedByRole: actor?.role || null,
     updatedAt: new Date().toISOString(),
   };
+  if (!next.name || !next.phone) {
+    const err = new Error('Customer name and phone are required.'); err.code = 'INVALID_CUSTOMER'; throw err;
+  }
   CUSTOMERS[idx] = next;
   return decorateCustomer(next);
 }
@@ -348,47 +404,81 @@ export async function getCustomerChildren(customerId) {
   );
 }
 
-export async function addCustomerChild(customerId, payload = {}) {
+export async function addCustomerChild(customerId, payload = {}, { actor } = {}) {
   await delay(80);
-  const name = String(payload.name || '').trim();
-  const initialClass = String(payload.initialClass || '').trim();
-  if (!name) {
-    const err = new Error('Child name is required.');
-    err.code = 'EMPTY_NAME';
+  if (!CUSTOMERS.some((customer) => customer.id === customerId)) {
+    const err = new Error(`Customer ${customerId} not found.`);
+    err.code = 'NOT_FOUND';
     throw err;
   }
+  const child = validateChild(payload, 1);
   const id = `kid-${String(CHILDREN.length + 1).padStart(3, '0')}`;
+  const now = new Date().toISOString();
   const created = {
     id,
     customerId,
-    name,
-    initialClass,
-    createdAt: new Date().toISOString(),
+    ...child,
+    createdBy: actor?.username || 'unknown',
+    createdByRole: actor?.role || null,
+    updatedBy: actor?.username || 'unknown',
+    updatedByRole: actor?.role || null,
+    createdAt: now,
+    updatedAt: now,
   };
   CHILDREN.push(created);
   return decorateChild(created);
 }
 
-export async function getCustomerSalesHistory(customerId) {
+export async function updateCustomerChild(customerId, childId, patch = {}, { actor } = {}) {
   await delay(80);
-  return (SALES_BY_CUSTOMER[customerId] || []).slice();
+  if (actor?.role !== ROLES.OWNER && actor?.role !== ROLES.EMPLOYEE) {
+    const err = new Error('Customer access required.'); err.code = 'FORBIDDEN_ROLE'; throw err;
+  }
+  const index = CHILDREN.findIndex((child) => child.id === childId && child.customerId === customerId);
+  if (index < 0) {
+    const err = new Error('Child not found.'); err.code = 'NOT_FOUND'; throw err;
+  }
+  const validated = validateChild({ ...CHILDREN[index], ...patch }, 1);
+  CHILDREN[index] = { ...CHILDREN[index], ...validated, updatedBy: actor.username, updatedByRole: actor.role, updatedAt: new Date().toISOString() };
+  return decorateChild(CHILDREN[index]);
+}
+
+export async function getCustomerSalesHistory(customerId) {
+  const { getSales } = await import('../sales/salesService.js');
+  return (await getSales())
+    .filter((sale) => sale.customerId === customerId)
+    .map((sale) => ({
+      id: sale.id,
+      salesCode: sale.salesCode,
+      total: sale.total,
+      createdAt: sale.createdAt,
+      itemCount: sale.items.reduce((sum, item) => sum + Number(item.qty || 0), 0),
+    }));
 }
 
 export async function getCustomerCustomOrders(customerId) {
-  await delay(80);
-  return (CUSTOM_ORDERS_BY_CUSTOMER[customerId] || []).slice();
+  const { getCustomOrders } = await import('../customOrders/customOrderService.js');
+  return (await getCustomOrders())
+    .filter((order) => order.customerId === customerId)
+    .map((order) => {
+      const paid = (order.payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      return {
+        id: order.id, code: order.code, title: order.productName,
+        total: order.total, status: order.status,
+        due: order.status === 'CANCELLED' ? 0 : Math.max(0, Number(order.total || 0) - paid),
+        cancelledUnpaid: order.status === 'CANCELLED' ? Math.max(0, Number(order.total || 0) - paid) : 0,
+        createdAt: order.createdAt,
+      };
+    });
 }
 
 export async function getCustomerDueSummary(customerId) {
-  await delay(80);
-  const sales = SALES_BY_CUSTOMER[customerId] || [];
-  const customOrders = CUSTOM_ORDERS_BY_CUSTOMER[customerId] || [];
-  const openSales = sales.length; // all sales count as cleared in this mock
-  const openCustomOrders = customOrders.filter((co) => co.due > 0);
+  const customOrders = await getCustomerCustomOrders(customerId);
+  const openCustomOrders = customOrders.filter((co) => co.status !== 'CANCELLED' && co.due > 0);
   const totalDue = openCustomOrders.reduce((sum, co) => sum + co.due, 0);
   return {
     customerId,
-    openSales,
+    openSales: 0,
     openCustomOrders,
     totalDue,
     currency: 'BDT',

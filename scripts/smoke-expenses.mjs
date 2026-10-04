@@ -18,6 +18,7 @@ import {
   createExpenseCategory,
   getExpenses,
   createExpense,
+  updateExpense,
   aggregateExpensesByCategory,
   sumExpensesByMonth,
 } from '../src/services/expenses/expenseService.js';
@@ -90,6 +91,19 @@ await test('createExpense happy path', async () => {
   assert.equal(created.amount, 1200);
   assert.equal(created.createdBy, 'owner');
   assert.equal(created.createdByRole, ROLES.OWNER);
+  assert.equal(Object.hasOwn(created, 'notes'), false);
+});
+
+await test('expenses do not persist a separate notes field', async () => {
+  const cats = await getExpenseCategories(OWNER);
+  const created = await createExpense({
+    categoryId: cats[0].id, amount: 100, expenseDate: '2026-09-16', notes: 'ignored',
+  }, OWNER);
+  assert.equal(Object.hasOwn(created, 'notes'), false);
+  const updated = await updateExpense(created.id, { notes: 'still ignored' }, OWNER);
+  assert.equal(Object.hasOwn(updated, 'notes'), false);
+  const list = await getExpenses(OWNER);
+  assert.ok(list.every((expense) => !Object.hasOwn(expense, 'notes')));
 });
 
 await test('createExpense rejects zero or negative amount', async () => {

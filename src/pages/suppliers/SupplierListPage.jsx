@@ -1,8 +1,9 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * SupplierListPage — Phase 9.
  *
  * Owner-only. Premium card grid for the supplier directory with:
- *   - search across name / contact / phone / category
+ *   - search across supplier code / name / contact / phone
  *   - status filter pills (all / active / inactive) with counts
  *   - per-card purchase totals (purchases / paid / due)
  *   - "Add supplier" CTA opens inline creation form
@@ -26,16 +27,18 @@ import {
 } from '../../components/common/index.js';
 import { SupplierIcon } from '../../components/icons/DashboardIcon.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useLocale } from '../../contexts/LocaleContext.jsx';
 import {
   createSupplier,
   getSuppliers,
 } from '../../services/suppliers/supplierService.js';
 import { getPurchases } from '../../services/purchases/purchaseService.js';
 import { computeSupplierTotals } from '../../services/suppliers/supplierService.js';
-import { formatCompact, formatCurrency, timeAgo } from '../../utils/format.js';
+import { formatCompact, formatCount, formatCurrency, timeAgo } from '../../utils/format.js';
 import styles from './SupplierListPage.module.css';
 
 export default function SupplierListPage() {
+  const { t } = useLocale();
   const { user, role } = useAuth();
   const isOwner = role === 'OWNER';
   const navigate = useNavigate();
@@ -55,7 +58,6 @@ export default function SupplierListPage() {
     phone: '',
     email: '',
     address: '',
-    category: '',
     notes: '',
   });
 
@@ -103,7 +105,7 @@ export default function SupplierListPage() {
         s.name.toLowerCase().includes(q) ||
         (s.contactPerson || '').toLowerCase().includes(q) ||
         (s.phone || '').toLowerCase().includes(q) ||
-        (s.category || '').toLowerCase().includes(q)
+        (s.supplierCode || '').toLowerCase().includes(q)
       );
     });
   }, [suppliers, query, statusFilter]);
@@ -119,7 +121,6 @@ export default function SupplierListPage() {
       phone: '',
       email: '',
       address: '',
-      category: '',
       notes: '',
     });
     setSubmitError('');
@@ -137,7 +138,6 @@ export default function SupplierListPage() {
           phone: draft.phone,
           email: draft.email,
           address: draft.address,
-          category: draft.category,
           notes: draft.notes,
         },
         { actor: { username: user?.username || 'unknown', role } },
@@ -156,7 +156,7 @@ export default function SupplierListPage() {
     return (
       <main className={styles.page} aria-busy="true">
         <div className={styles.loading}>
-          <Spinner /> <span>Loading suppliers…</span>
+          <Spinner /> <span><T>Loading suppliers…</T></span>
         </div>
       </main>
     );
@@ -170,80 +170,89 @@ export default function SupplierListPage() {
         description="Vendor directory with purchase totals and payment history."
         actions={
           isOwner && !formOpen ? (
-            <Button variant="primary" onClick={() => setFormOpen(true)}>
+            <Button variant="primary" onClick={() => setFormOpen(true)}><T>
               + Add supplier
-            </Button>
+            </T></Button>
           ) : null
         }
       />
 
       {isOwner && formOpen && (
         <Card className={styles.formCard}>
-          <h2 className={styles.formTitle}>New supplier</h2>
+          <h2 className={styles.formTitle}><T>New supplier</T></h2>
           <form className={styles.form} onSubmit={handleSubmit}>
             {submitError && (
               <p className={styles.formError} role="alert">
-                {submitError}
+                <T>{submitError}</T>
               </p>
             )}
             <div className={styles.row}>
-              <FormField label="Name" required>
-                <Input
-                  value={draft.name}
-                  onChange={(e) => updateDraft('name', e.target.value)}
-                  placeholder="e.g. Aarong Fabrics"
-                  required
-                />
+              <FormField label="Name" htmlFor="supplier-name" required>
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    value={draft.name}
+                    onChange={(e) => updateDraft('name', e.target.value)}
+                    placeholder="e.g. Aarong Fabrics"
+                    required
+                  />
+                )}
               </FormField>
-              <FormField label="Contact person">
-                <Input
-                  value={draft.contactPerson}
-                  onChange={(e) =>
-                    updateDraft('contactPerson', e.target.value)
-                  }
-                  placeholder="Owner / manager name"
-                />
+              <FormField label="Contact person" htmlFor="supplier-contact">
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    value={draft.contactPerson}
+                    onChange={(e) => updateDraft('contactPerson', e.target.value)}
+                    placeholder="Owner / manager name"
+                  />
+                )}
               </FormField>
-              <FormField label="Phone" required>
-                <Input
-                  value={draft.phone}
-                  onChange={(e) => updateDraft('phone', e.target.value)}
-                  placeholder="+8801XXXXXXXXX"
-                  required
-                />
+              <FormField label="Phone" htmlFor="supplier-phone" required>
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    value={draft.phone}
+                    onChange={(e) => updateDraft('phone', e.target.value)}
+                    placeholder="+8801XXXXXXXXX"
+                    required
+                  />
+                )}
               </FormField>
             </div>
             <div className={styles.row}>
-              <FormField label="Email">
-                <Input
-                  type="email"
-                  value={draft.email}
-                  onChange={(e) => updateDraft('email', e.target.value)}
-                  placeholder="optional"
-                />
+              <FormField label="Email" htmlFor="supplier-email">
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    type="email"
+                    value={draft.email}
+                    onChange={(e) => updateDraft('email', e.target.value)}
+                    placeholder="optional"
+                  />
+                )}
               </FormField>
-              <FormField label="Category">
-                <Input
-                  value={draft.category}
-                  onChange={(e) => updateDraft('category', e.target.value)}
-                  placeholder="e.g. Fabrics"
-                />
-              </FormField>
-              <FormField label="Updated note">
-                <Input
-                  value={draft.notes}
-                  onChange={(e) => updateDraft('notes', e.target.value)}
-                  placeholder="optional"
-                />
+              <FormField label="Notes" htmlFor="supplier-notes">
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    value={draft.notes}
+                    onChange={(e) => updateDraft('notes', e.target.value)}
+                    placeholder="optional"
+                  />
+                )}
               </FormField>
             </div>
-            <FormField label="Address">
-              <Textarea
-                rows={2}
-                value={draft.address}
-                onChange={(e) => updateDraft('address', e.target.value)}
-                placeholder="optional"
-              />
+            <FormField label="Address" htmlFor="supplier-address">
+              {(controlProps) => (
+                <Textarea
+                  {...controlProps}
+                  rows={2}
+                  value={draft.address}
+                  onChange={(e) => updateDraft('address', e.target.value)}
+                  placeholder="optional"
+                />
+              )}
             </FormField>
             <div className={styles.formActions}>
               <Button
@@ -254,9 +263,9 @@ export default function SupplierListPage() {
                   resetDraft();
                 }}
                 disabled={submitBusy}
-              >
+              ><T>
                 Cancel
-              </Button>
+              </T></Button>
               <Button type="submit" variant="primary" disabled={submitBusy}>
                 {submitBusy ? 'Saving…' : 'Save supplier'}
               </Button>
@@ -269,8 +278,8 @@ export default function SupplierListPage() {
         <div className={styles.searchRow}>
           <SearchInput
             value={query}
-            onChange={setQuery}
-            placeholder="Search by name, contact, phone, category…"
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by code, name or phone…"
             className={styles.searchInput}
           />
           <div className={styles.filterRow}>
@@ -289,7 +298,7 @@ export default function SupplierListPage() {
                 }
                 onClick={() => setStatusFilter(opt.id)}
               >
-                {opt.label}
+                {t(opt.label)}
                 <span className={styles.filterCount}>{opt.count}</span>
               </button>
             ))}
@@ -311,9 +320,9 @@ export default function SupplierListPage() {
           }
           action={
             isOwner && suppliers.length === 0 ? (
-              <Button variant="primary" onClick={() => setFormOpen(true)}>
+              <Button variant="primary" onClick={() => setFormOpen(true)}><T>
                 + Add supplier
-              </Button>
+              </T></Button>
             ) : null
           }
         />
@@ -343,7 +352,7 @@ export default function SupplierListPage() {
                     <div className={styles.cardHeadText}>
                       <span className={styles.cardName}>{s.name}</span>
                       <span className={styles.metaLine}>
-                        {s.contactPerson || 'No contact person'}
+                        {s.contactPerson || t('No contact person')}
                       </span>
                     </div>
                     <div
@@ -352,29 +361,27 @@ export default function SupplierListPage() {
                           ? `${styles.statusDot} ${styles.dotActive}`
                           : `${styles.statusDot} ${styles.dotInactive}`
                       }
-                      title={s.isActive ? 'Active' : 'Inactive'}
-                      aria-label={s.isActive ? 'Active' : 'Inactive'}
+                      title={t(s.isActive ? 'Active' : 'Inactive')}
+                      aria-label={t(s.isActive ? 'Active' : 'Inactive')}
                     />
                   </div>
 
                   <div className={styles.metaRow}>
-                    <span className={styles.metaPill}>{s.category}</span>
                     <span className={styles.metaText}>{s.phone}</span>
                   </div>
 
                   <div className={styles.totalsRow}>
                     <div className={styles.totalCell}>
-                      <span className={styles.totalLabel}>Purchases</span>
+                      <span className={styles.totalLabel}><T>Purchases</T></span>
                       <span className={styles.totalValue}>
                         {formatCurrency(totals.purchasesTotal)}
                       </span>
                       <span className={styles.totalSub}>
-                        {totals.purchaseCount} order
-                        {totals.purchaseCount === 1 ? '' : 's'}
+                        {formatCount(totals.purchaseCount, 'order', 'orders', 'অর্ডার')}
                       </span>
                     </div>
                     <div className={styles.totalCell}>
-                      <span className={styles.totalLabel}>Paid</span>
+                      <span className={styles.totalLabel}><T>Paid</T></span>
                       <span className={styles.totalValue}>
                         {formatCurrency(totals.paidTotal)}
                       </span>
@@ -386,7 +393,7 @@ export default function SupplierListPage() {
                           : styles.totalCell
                       }
                     >
-                      <span className={styles.totalLabel}>Due</span>
+                      <span className={styles.totalLabel}><T>Due</T></span>
                       <span className={styles.totalValue}>
                         {formatCurrency(totals.dueTotal)}
                       </span>
@@ -399,8 +406,8 @@ export default function SupplierListPage() {
                   </div>
 
                   <div className={styles.cardFooter}>
-                    <span className={styles.footerMeta}>
-                      Updated {timeAgo(s.updatedAt)}
+                    <span className={styles.footerMeta}><T>
+                      Updated </T>{timeAgo(s.updatedAt)}
                     </span>
                     <Button
                       type="button"
@@ -409,9 +416,9 @@ export default function SupplierListPage() {
                         e.preventDefault();
                         navigate(`/suppliers/${s.id}`);
                       }}
-                    >
+                    ><T>
                       Open →
-                    </Button>
+                    </T></Button>
                   </div>
                 </Link>
               </li>

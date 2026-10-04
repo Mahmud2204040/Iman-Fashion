@@ -47,6 +47,24 @@
   gap: 12px;
 }
 
+.totalsRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.totalsRow > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.totalsRow .costValue {
+  font-size: clamp(18px, 2.5vw, 24px);
+  line-height: 1.15;
+}
+
 .formTitle {
   margin: 0 0 6px;
   font-size: 14px;

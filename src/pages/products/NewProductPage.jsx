@@ -1,9 +1,8 @@
+import T from '../../components/common/LocalizedText.jsx';
 /**
  * NewProductPage — Phase 4 sidebar entry point.
  *
- * Owner-only dedicated creation form for `/products/new`. Mirrors the
- * inline form that used to live inside ProductListPage, but lives on its
- * own route so the sidebar "Add New Product" leaf has a real target.
+ * Owner-only creation form for `/products/new`.
  *
  * On success it navigates to the new product's detail page.
  */
@@ -24,17 +23,6 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { createProduct } from '../../services/products/productService.js';
 import styles from './NewProductPage.module.css';
 
-const CATEGORY_OPTIONS = [
-  { value: '', label: 'Select category…' },
-  { value: 'Uniforms', label: 'Uniforms' },
-  { value: 'Hijabs', label: 'Hijabs' },
-  { value: 'Frocks', label: 'Frocks' },
-  { value: 'Shoes', label: 'Shoes' },
-  { value: 'Bags', label: 'Bags' },
-  { value: 'Accessories', label: 'Accessories' },
-  { value: 'Custom', label: 'Custom' },
-];
-
 export default function NewProductPage() {
   const { user, role } = useAuth();
   const navigate = useNavigate();
@@ -42,12 +30,10 @@ export default function NewProductPage() {
 
   const [draft, setDraft] = useState({
     name: '',
-    sku: '',
-    category: '',
-    price: '',
     purchasePrice: '',
-    stock: '0',
-    description: '',
+    notes: '',
+    openingStock: '',
+    status: 'ACTIVE',
   });
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -62,11 +48,12 @@ export default function NewProductPage() {
     setSubmitBusy(true);
     try {
       const payload = {
-        ...draft,
-        price: draft.price === '' ? 0 : Number(draft.price),
+        name: draft.name.trim(),
         purchasePrice:
           draft.purchasePrice === '' ? null : Number(draft.purchasePrice),
-        stock: draft.stock === '' ? 0 : Number(draft.stock),
+        description: draft.notes.trim(),
+        isActive: draft.status === 'ACTIVE',
+        stock: draft.openingStock === '' ? 0 : Number(draft.openingStock),
       };
       const created = await createProduct(payload, {
         actor: { username: user?.username || 'unknown', role },
@@ -84,21 +71,21 @@ export default function NewProductPage() {
       <PageHeader
         eyebrow="Inventory"
         title="Add new product"
-        description="Create a catalogue entry. You can edit prices, stock, and details afterwards."
+        description="Create a finished product and, if needed, record opening stock in the same step."
         actions={
-          <Link to="/products" className={styles.backLink}>
+          <Link to="/products" className={styles.backLink}><T>
             ← Back to products
-          </Link>
+          </T></Link>
         }
       />
 
       {!isOwner ? (
         <Card className={styles.lockedCard}>
-          <h2 className={styles.lockedTitle}>Owner-only</h2>
-          <p className={styles.lockedBody}>
+          <h2 className={styles.lockedTitle}><T>Owner-only</T></h2>
+          <p className={styles.lockedBody}><T>
             Adding products is restricted to the owner role. Sign in with an
             owner account to continue.
-          </p>
+          </T></p>
         </Card>
       ) : (
         <Card className={styles.formCard}>
@@ -106,99 +93,77 @@ export default function NewProductPage() {
             <span className={styles.formHeadIcon} aria-hidden="true">
               <PackagePlusIcon size={20} strokeWidth={1.75} />
             </span>
-            <h2 className={styles.formTitle}>Product details</h2>
+            <h2 className={styles.formTitle}><T>Product details</T></h2>
           </div>
           <form className={styles.form} onSubmit={handleSubmit}>
             <div className={styles.row}>
               <FormField label="Product name" htmlFor="np-name" required>
-                <Input
-                  id="np-name"
-                  placeholder="e.g. School uniform — Navy (Class 4)"
-                  value={draft.name}
-                  onChange={update('name')}
-                  required
-                />
-              </FormField>
-              <FormField label="SKU" htmlFor="np-sku" required>
-                <Input
-                  id="np-sku"
-                  placeholder="e.g. UNI-S4-NAVY"
-                  value={draft.sku}
-                  onChange={update('sku')}
-                  required
-                />
-              </FormField>
-              <FormField label="Category" htmlFor="np-cat">
-                <Select
-                  id="np-cat"
-                  value={draft.category}
-                  onChange={update('category')}
-                >
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              </FormField>
-            </div>
-
-            <div className={styles.row}>
-              <FormField label="Selling price (৳)" htmlFor="np-price" required>
-                <Input
-                  id="np-price"
-                  type="number"
-                  inputMode="decimal"
-                  min="1"
-                  step="1"
-                  placeholder="0"
-                  value={draft.price}
-                  onChange={update('price')}
-                  required
-                />
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    placeholder="e.g. Navy Blue Pant - XXL"
+                    value={draft.name}
+                    onChange={update('name')}
+                    required
+                  />
+                )}
               </FormField>
               <FormField
                 label="Purchase price (৳, optional)"
                 htmlFor="np-pp"
-                hint="Used for profit reports"
+                helper="Leave blank if the cost is unknown. Owner-only information."
               >
-                <Input
-                  id="np-pp"
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="1"
-                  placeholder="0"
-                  value={draft.purchasePrice}
-                  onChange={update('purchasePrice')}
-                />
+                {(controlProps) => (
+                  <Input
+                    {...controlProps}
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    placeholder="Optional"
+                    value={draft.purchasePrice}
+                    onChange={update('purchasePrice')}
+                  />
+                )}
               </FormField>
-              <FormField label="Opening stock" htmlFor="np-stock">
-                <Input
-                  id="np-stock"
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  step="1"
-                  value={draft.stock}
-                  onChange={update('stock')}
-                />
+              <FormField label="Status" htmlFor="np-status" required>
+                {(controlProps) => (
+                  <Select
+                    {...controlProps}
+                    value={draft.status}
+                    onChange={update('status')}
+                    options={[
+                      { value: 'ACTIVE', label: 'Active' },
+                      { value: 'INACTIVE', label: 'Inactive' },
+                    ]}
+                    required
+                  />
+                )}
+              </FormField>
+              <FormField label="Opening stock (optional)" htmlFor="np-opening-stock" helper="A positive amount creates an OPENING_STOCK history entry.">
+                {(controlProps) => <Input {...controlProps} type="number" min="0" step="1" value={draft.openingStock} onChange={update('openingStock')} placeholder="0" />}
               </FormField>
             </div>
 
-            <FormField label="Description" htmlFor="np-desc">
-              <Textarea
-                id="np-desc"
-                rows={3}
-                placeholder="Optional notes about fabric, sizing, or variants."
-                value={draft.description}
-                onChange={update('description')}
-              />
+            <FormField label="Notes" htmlFor="np-notes">
+              {(controlProps) => (
+                <Textarea
+                  {...controlProps}
+                  rows={3}
+                  placeholder="Optional product details. Include size and colour in the product name."
+                  value={draft.notes}
+                  onChange={update('notes')}
+                />
+              )}
             </FormField>
+
+            <p className={styles.notice}><T>
+              Selling price is entered for each sale. Purchase cost is private to Owner.
+            </T></p>
 
             {submitError ? (
               <p className={styles.formError} role="alert">
-                {submitError}
+                <T>{submitError}</T>
               </p>
             ) : null}
 
@@ -207,9 +172,9 @@ export default function NewProductPage() {
                 type="button"
                 variant="ghost"
                 onClick={() => navigate('/products')}
-              >
+              ><T>
                 Cancel
-              </Button>
+              </T></Button>
               <Button type="submit" variant="primary" disabled={submitBusy}>
                 {submitBusy ? 'Creating…' : 'Create product'}
               </Button>

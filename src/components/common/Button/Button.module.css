@@ -54,6 +54,13 @@
   padding: 0 var(--space-5);
 }
 
+@media (max-width: 1023px) {
+  .button,
+  .size-sm {
+    min-height: 44px;
+  }
+}
+
 /* ---------- Variants ---------- */
 .variant-primary {
   background: var(--color-primary);
