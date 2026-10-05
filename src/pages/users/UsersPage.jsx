@@ -8,7 +8,7 @@ import { createEmployee, getEmployees, updateEmployee } from '../../services/use
 import statusIndicator from '../../assets/figma/employee-accounts/imgStatusIndicator.svg';
 import styles from './UsersPage.module.css';
 
-const DEMO_NOTICE = 'Demo account metadata is saved in this browser. All demo accounts share the password 1234; this is not production security.';
+const DEMO_NOTICE = 'All new employee accounts are assigned an initial password: password123. They can change it after signing in.';
 
 export default function UsersPage() {
   const { user } = useAuth();
@@ -40,9 +40,9 @@ export default function UsersPage() {
     event.preventDefault();
     setBusy(true); setError(''); setNotice('');
     try {
-      await createEmployee({ username }, { actor: user });
+      await createEmployee({ username, password: 'password123' }, { actor: user });
       setUsername('');
-      setNotice('Employee account created. The shared demo password is 1234.');
+      setNotice('Employee account created. The initial password is password123.');
       await refresh();
     } catch (err) {
       setError(err?.message || 'Could not create employee.');
@@ -54,7 +54,7 @@ export default function UsersPage() {
   async function save(row, patch) {
     setBusy(true); setError(''); setNotice('');
     try {
-      await updateEmployee(row.username, patch, { actor: user });
+      await updateEmployee(row.id, patch);
       setEditing(null);
       setNotice('Employee account updated.');
       await refresh();
@@ -65,7 +65,7 @@ export default function UsersPage() {
     }
   }
 
-  const [noticeBeforePassword, noticeAfterPassword] = t(DEMO_NOTICE).split('1234');
+  const [noticeBeforePassword, noticeAfterPassword] = t(DEMO_NOTICE).split('password123');
 
   return (
     <main className={styles.page}>
@@ -105,7 +105,7 @@ export default function UsersPage() {
           </div>
           <aside className={styles.demoNotice}>
             <div className={styles.demoNoticeTitle}><span aria-hidden="true" className={styles.infoMark}>i</span>{t('Demo accounts only')}</div>
-            <p>{noticeBeforePassword}<strong>1234</strong>{noticeAfterPassword}</p>
+            <p>{noticeBeforePassword}<strong>password123</strong>{noticeAfterPassword}</p>
           </aside>
         </div>
 
@@ -124,7 +124,7 @@ export default function UsersPage() {
           ) : (
             <ul className={styles.list}>
               {employees.map((row) => (
-                <li key={row.username} className={styles.row}>
+                <li key={row.id} className={styles.row}>
                   <div className={styles.identity}>
                     <span className={styles.avatar} aria-hidden="true">{row.username.charAt(0).toUpperCase()}</span>
                     {editing === row.username ? (

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Spinner } from '../../components/common/index.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { createEmployee, getEmployees, setEmployeePassword, setOwnPassword, updateEmployee } from '../../services/users/accountApiService.js';
+import { createEmployee, getEmployees, setEmployeePassword, setOwnPassword, updateEmployee } from '../../services/users/userService.js';
 import styles from './ProfilePage.module.css';
 
 export default function ProfilePage() {

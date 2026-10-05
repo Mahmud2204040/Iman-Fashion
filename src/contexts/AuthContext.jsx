@@ -19,7 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import * as authService from '../services/auth/apiAuthService.js';
+import * as authService from '../services/auth/authService.js';
 import { AuthContext } from './authContext.js';
 
 export function AuthProvider({ children }) {
