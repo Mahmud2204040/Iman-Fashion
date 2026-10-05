@@ -1,645 +1,147 @@
-/**
- * productService — Phase 8 mock.
- *
- * Owns the product catalogue and stock ledger. Per FRONTEND_PLAN.md
- * (Phase 8 — Products & Stock):
- *
- *   - Owner-only module
- *   - Stock shown as a plain number — no color bands / thresholds
- *   - Stock adjustment form:
- *       Quantity Change (+ / -) + Reason (required, free text)
- *   - The only structured reason shortcut is `OPENING_STOCK`
- *   - No predefined reason enum
- *   - No purchase_price gating on this page (the "profit" report will
- *     surface purchase price once the relevant data is captured)
- *
- * Real backend will replace this file entirely.
- */
-import { ROLES } from '../../constants/roles.js';
-import { delay } from '../delay.js';
+import { apiRequest } from '../api/apiClient.js';
 
-/* -------------------------------------------------------------------------- */
-/* Mock products                                                                */
-/* -------------------------------------------------------------------------- */
-
-const PRODUCTS = [
-  {
-    id: 'prd-001',
-    sku: 'UNI-S3-NAVY',
-    name: 'School uniform — Navy (Class 3)',
-    category: 'Uniforms',
-    description: 'Navy blue school uniform set: tunic + hijab + trousers.',
-    price: 1850,
-    purchasePrice: null,
-    stock: 22,
+function normalizeProduct(raw) {
+  return {
+    ...raw,
+    sku: raw.productCode || '',
+    stock: raw.stockQuantity ?? 0,
+    price: raw.purchasePrice != null ? Number(raw.purchasePrice) : null,
+    purchasePrice: raw.purchasePrice != null ? Number(raw.purchasePrice) : null,
+    isActive: raw.status === 'ACTIVE',
+    category: '',
+    description: raw.notes || '',
     reorderLevel: 0,
-    isActive: true,
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    updatedBy: 'owner',
-    updatedByRole: ROLES.OWNER,
-    createdAt: '2025-03-10T09:30:00Z',
-    updatedAt: '2025-09-12T11:00:00Z',
-  },
-  {
-    id: 'prd-002',
-    sku: 'UNI-S5-NAVY',
-    name: 'School uniform — Navy (Class 5)',
-    category: 'Uniforms',
-    description: 'Navy blue school uniform set for Class 5.',
-    price: 2100,
-    purchasePrice: null,
-    stock: 19,
-    reorderLevel: 0,
-    isActive: true,
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    updatedBy: 'owner',
-    updatedByRole: ROLES.OWNER,
-    createdAt: '2025-03-12T09:30:00Z',
-    updatedAt: '2025-09-10T10:00:00Z',
-  },
-  {
-    id: 'prd-003',
-    sku: 'HIJAB-PREMIUM',
-    name: 'Premium hijab — stone grey',
-    category: 'Hijabs',
-    description: 'Stone grey premium hijab with anti-slip lining.',
-    price: 650,
-    purchasePrice: null,
-    stock: 36,
-    reorderLevel: 0,
-    isActive: true,
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    updatedBy: 'owner',
-    updatedByRole: ROLES.OWNER,
-    createdAt: '2025-04-02T09:30:00Z',
-    updatedAt: '2025-09-08T16:00:00Z',
-  },
-  {
-    id: 'prd-004',
-    sku: 'BLOUSE-WHITE',
-    name: 'White blouse — formal',
-    category: 'Blouses',
-    description: 'Long-sleeve formal white blouse.',
-    price: 980,
-    purchasePrice: null,
-    stock: 14,
-    reorderLevel: 0,
-    isActive: true,
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    updatedBy: 'owner',
-    updatedByRole: ROLES.OWNER,
-    createdAt: '2025-05-20T09:30:00Z',
-    updatedAt: '2025-09-04T12:00:00Z',
-  },
-  {
-    id: 'prd-005',
-    sku: 'DRESS-SPRING',
-    name: 'Spring dress — floral',
-    category: 'Dresses',
-    description: 'Light floral spring dress with pleated hem.',
-    price: 1450,
-    purchasePrice: null,
-    stock: 7,
-    reorderLevel: 0,
-    isActive: true,
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    updatedBy: 'owner',
-    updatedByRole: ROLES.OWNER,
-    createdAt: '2025-06-04T09:30:00Z',
-    updatedAt: '2025-09-02T09:00:00Z',
-  },
-];
-
-/* Stock ledger — append-only history. Each entry rolled into stock total. */
-const STOCK_LEDGER = [
-  {
-    id: 'sl-001',
-    productId: 'prd-001',
-    delta: 24,
-    reason: 'OPENING_STOCK',
-    note: 'Initial shelf count',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-03-10T09:30:00Z',
-  },
-  {
-    id: 'sl-002',
-    productId: 'prd-002',
-    delta: 20,
-    reason: 'OPENING_STOCK',
-    note: 'Initial shelf count',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-03-12T09:30:00Z',
-  },
-  {
-    id: 'sl-003',
-    productId: 'prd-003',
-    delta: 40,
-    reason: 'OPENING_STOCK',
-    note: 'Initial shelf count',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-04-02T09:30:00Z',
-  },
-  {
-    id: 'sl-004',
-    productId: 'prd-004',
-    delta: 15,
-    reason: 'OPENING_STOCK',
-    note: 'Initial shelf count',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-05-20T09:30:00Z',
-  },
-  {
-    id: 'sl-005',
-    productId: 'prd-005',
-    delta: 10,
-    reason: 'OPENING_STOCK',
-    note: 'Initial shelf count',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-06-04T09:30:00Z',
-  },
-  {
-    id: 'sl-006',
-    productId: 'prd-001',
-    delta: -1,
-    reason: 'Damaged in shop',
-    note: 'Torn sleeve found during morning check',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-01T10:00:00Z',
-  },
-  {
-    id: 'sl-007',
-    productId: 'prd-002',
-    delta: -2,
-    reason: 'Sold to retail customer',
-    note: 'Walk-in customer 2025-09-04',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-04T15:00:00Z',
-  },
-  {
-    id: 'sl-008',
-    productId: 'prd-003',
-    delta: -4,
-    reason: 'Sold to retail customers',
-    note: 'Multiple walk-in sales 2025-09-05-08',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-08T16:00:00Z',
-  },
-  {
-    id: 'sl-009',
-    productId: 'prd-004',
-    delta: -1,
-    reason: 'Reserved for custom order',
-    note: 'Custom order cust-002 children',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-04T12:00:00Z',
-  },
-  {
-    id: 'sl-010',
-    productId: 'prd-005',
-    delta: -3,
-    reason: 'Sold to retail customer',
-    note: 'Bulk order 2025-09-02',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-02T09:00:00Z',
-  },
-  {
-    id: 'sl-011',
-    productId: 'prd-001',
-    delta: 1,
-    reason: 'Returned from custom order (cancelled)',
-    note: 'Returned from cancelled custom order 2025-09-10',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-10T10:00:00Z',
-  },
-  {
-    id: 'sl-012',
-    productId: 'prd-001',
-    delta: -2,
-    reason: 'Sold to retail customer',
-    note: 'Walk-in sales 2025-09-11',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-11T17:00:00Z',
-  },
-  {
-    id: 'sl-013',
-    productId: 'prd-002',
-    delta: 1,
-    reason: 'Returned / exchange',
-    note: 'Wrong size returned by cust-002',
-    createdBy: 'owner',
-    createdByRole: ROLES.OWNER,
-    createdAt: '2025-09-09T14:00:00Z',
-  },
-];
-
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                      */
-/* -------------------------------------------------------------------------- */
-
-function cloneProduct(p) {
-  return { ...p, tags: [...(p.tags || [])] };
+    createdBy: raw.createdById || '',
+    updatedBy: raw.updatedById || '',
+  };
 }
 
-function cloneLedger(r) {
-  return { ...r };
+function normalizeStockEntry(raw) {
+  return {
+    id: raw.id || '',
+    productId: raw.productId || '',
+    delta: raw.quantityChange ?? 0,
+    reason: raw.reason || '',
+    note: raw.reason || '',
+    sourceType: raw.sourceType || '',
+    sourceId: raw.sourceId || '',
+    createdBy: raw.actorId || '',
+    createdAt: raw.at || raw.createdAt || '',
+  };
 }
-
-function ledgerCount(productId) {
-  return STOCK_LEDGER
-    .filter((r) => r.productId === productId)
-    .reduce((sum, r) => sum + Number(r.delta || 0), 0);
-}
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function requireRole({ actor } = {}, allowedRoles) {
-  if (!actor || !allowedRoles.includes(actor.role)) {
-    const err = new Error('Only an owner can perform this action.');
-    err.code = 'FORBIDDEN_ROLE';
-    throw err;
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/* Public API                                                                   */
-/* -------------------------------------------------------------------------- */
-
-const OWNER_ROLE = [ROLES.OWNER];
 
 export async function getProducts() {
-  await delay(150);
-  return PRODUCTS.map(cloneProduct).sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
+  const result = await apiRequest('/api/v1/products?pageSize=100', { raw: true });
+  let rows = result.data;
+  if (result.meta.total > rows.length) {
+    let page = 2;
+    while (rows.length < result.meta.total) {
+      const next = await apiRequest(`/api/v1/products?page=${page}&pageSize=100`, { raw: true });
+      rows = rows.concat(next.data);
+      if (next.data.length === 0) break;
+      page += 1;
+    }
+  }
+  return rows.map(normalizeProduct);
 }
 
 export async function getProductById(id) {
-  await delay(120);
-  const found = PRODUCTS.find((p) => p.id === id);
-  return found ? cloneProduct(found) : null;
+  try {
+    const raw = await apiRequest(`/api/v1/products/${encodeURIComponent(id)}`);
+    if (!raw) return null;
+    return normalizeProduct(raw);
+  } catch (err) {
+    if (err.status === 404) return null;
+    throw err;
+  }
 }
 
 export async function searchProducts(query = '') {
-  await delay(80);
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) return PRODUCTS.map(cloneProduct);
-  return PRODUCTS.filter(
-    (p) =>
-      p.name.toLowerCase().includes(q) ||
-      p.sku.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q),
-  ).map(cloneProduct);
+  const q = String(query || '').trim();
+  const params = q ? `?search=${encodeURIComponent(q)}&pageSize=100` : '?pageSize=100';
+  const result = await apiRequest(`/api/v1/products${params}`, { raw: true });
+  return result.data.map(normalizeProduct);
 }
 
-export async function createProduct(payload = {}, { actor } = {}) {
-  requireRole({ actor }, OWNER_ROLE);
-  await delay(180);
-  const name = String(payload.name || '').trim();
-  const id = 'prd-' + String(PRODUCTS.length + 1).padStart(3, '0');
-  const sku = Object.hasOwn(payload, 'sku')
-    ? String(payload.sku || '').trim()
-    : id.toUpperCase();
-  const price = payload.price === undefined || payload.price === null || payload.price === ''
-    ? null
-    : Number(payload.price);
-  const stock = payload.stock === undefined ? 0 : Number(payload.stock);
-
-  if (!name) {
-    const err = new Error('Product name is required.');
-    err.code = 'EMPTY_NAME';
-    throw err;
-  }
-  if (!sku) {
-    const err = new Error('SKU is required.');
-    err.code = 'EMPTY_SKU';
-    throw err;
-  }
-  if (sku.length > 32) {
-    const err = new Error('SKU must be 32 characters or fewer.');
-    err.code = 'SKU_TOO_LONG';
-    throw err;
-  }
-  if (PRODUCTS.some((p) => p.sku.toLowerCase() === sku.toLowerCase())) {
-    const err = new Error('A product with this SKU already exists.');
-    err.code = 'DUPLICATE_SKU';
-    throw err;
-  }
-  if (price !== null && (!Number.isFinite(price) || price <= 0)) {
-    const err = new Error('Price must be a positive number.');
-    err.code = 'INVALID_PRICE';
-    throw err;
-  }
-  if (
-    payload.purchasePrice !== undefined &&
-    payload.purchasePrice !== null &&
-    payload.purchasePrice !== ''
-  ) {
-    const pp = Number(payload.purchasePrice);
-    if (!Number.isFinite(pp) || pp < 0) {
-      const err = new Error('Purchase price must be 0 or a positive number.');
-      err.code = 'INVALID_PURCHASE_PRICE';
-      throw err;
-    }
-  }
-  if (!Number.isFinite(stock) || stock < 0) {
-    const err = new Error('Stock must be 0 or a positive number.');
-    err.code = 'INVALID_STOCK';
-    throw err;
-  }
-
-  const product = {
-    id,
-    sku,
-    name,
-    category: String(payload.category || '').trim() || 'Uncategorized',
-    description: String(payload.description || '').trim(),
-    price,
-    purchasePrice:
-      payload.purchasePrice === undefined || payload.purchasePrice === null || payload.purchasePrice === ''
-        ? null
-        : Number(payload.purchasePrice),
-    stock,
-    reorderLevel: Number(payload.reorderLevel) || 0,
-    isActive: payload.isActive === false ? false : true,
-    createdBy: actor?.username || 'unknown',
-    createdByRole: actor?.role || ROLES.OWNER,
-    updatedBy: actor?.username || 'unknown',
-    updatedByRole: actor?.role || ROLES.OWNER,
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
+export async function createProduct(payload = {}, _options = {}) {
+  const body = {
+    name: String(payload.name || '').trim(),
   };
-  PRODUCTS.unshift(product);
-
-  if (stock !== 0) {
-    STOCK_LEDGER.unshift({
-      id: 'sl-' + String(STOCK_LEDGER.length + 1).padStart(3, '0'),
-      productId: id,
-      delta: stock,
-      reason: 'OPENING_STOCK',
-      note: 'Opening stock at creation',
-      createdBy: actor?.username || 'unknown',
-      createdByRole: actor?.role || ROLES.OWNER,
-      createdAt: nowIso(),
-    });
+  if (payload.purchasePrice != null && payload.purchasePrice !== '') {
+    body.purchasePrice = Number(payload.purchasePrice);
+  }
+  if (payload.stock != null && Number(payload.stock) > 0) {
+    body.openingStock = Number(payload.stock);
+  }
+  if (payload.description) {
+    body.notes = String(payload.description).trim();
+  }
+  if (payload.isActive === false) {
+    body.status = 'INACTIVE';
   }
 
-  return cloneProduct(product);
+  const raw = await apiRequest('/api/v1/products', { method: 'POST', body });
+  return normalizeProduct(raw);
 }
 
-export async function updateProduct(id, patch = {}, { actor } = {}) {
-  requireRole({ actor }, OWNER_ROLE);
-  await delay(160);
-  const idx = PRODUCTS.findIndex((p) => p.id === id);
-  if (idx === -1) {
-    const err = new Error('Product not found.');
-    err.code = 'NOT_FOUND';
-    throw err;
-  }
-  const target = PRODUCTS[idx];
-  const next = { ...target };
-
-  if (patch.name !== undefined) {
-    const name = String(patch.name || '').trim();
-    if (!name) {
-      const err = new Error('Product name cannot be empty.');
-      err.code = 'EMPTY_NAME';
-      throw err;
-    }
-    next.name = name;
-  }
-  if (patch.sku !== undefined) {
-    const sku = String(patch.sku || '').trim();
-    if (!sku) {
-      const err = new Error('SKU cannot be empty.');
-      err.code = 'EMPTY_SKU';
-      throw err;
-    }
-    if (
-      PRODUCTS.some(
-        (p) => p.id !== id && p.sku.toLowerCase() === sku.toLowerCase(),
-      )
-    ) {
-      const err = new Error('A product with this SKU already exists.');
-      err.code = 'DUPLICATE_SKU';
-      throw err;
-    }
-    next.sku = sku;
-  }
-  if (patch.category !== undefined) {
-    next.category = String(patch.category || '').trim() || 'Uncategorized';
+export async function updateProduct(id, patch = {}, _options = {}) {
+  const body = {};
+  if (patch.name !== undefined) body.name = String(patch.name).trim();
+  if (patch.purchasePrice !== undefined) {
+    body.purchasePrice = patch.purchasePrice === null || patch.purchasePrice === ''
+      ? null
+      : Number(patch.purchasePrice);
   }
   if (patch.description !== undefined) {
-    next.description = String(patch.description || '').trim();
-  }
-  if (patch.price !== undefined) {
-    const price = Number(patch.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      const err = new Error('Price must be a positive number.');
-      err.code = 'INVALID_PRICE';
-      throw err;
-    }
-    next.price = price;
-  }
-  if (patch.purchasePrice !== undefined) {
-    if (patch.purchasePrice === null || patch.purchasePrice === '') {
-      next.purchasePrice = null;
-    } else {
-      const pp = Number(patch.purchasePrice);
-      if (!Number.isFinite(pp) || pp < 0) {
-        const err = new Error('Purchase price must be 0 or a positive number.');
-        err.code = 'INVALID_PURCHASE_PRICE';
-        throw err;
-      }
-      next.purchasePrice = pp;
-    }
-  }
-  if (patch.reorderLevel !== undefined) {
-    const rl = Number(patch.reorderLevel);
-    if (!Number.isFinite(rl) || rl < 0) {
-      const err = new Error('Reorder level must be 0 or a positive number.');
-      err.code = 'INVALID_REORDER';
-      throw err;
-    }
-    next.reorderLevel = rl;
+    body.notes = String(patch.description || '').trim();
   }
   if (patch.isActive !== undefined) {
-    next.isActive = Boolean(patch.isActive);
+    body.status = patch.isActive ? 'ACTIVE' : 'INACTIVE';
   }
 
-  next.updatedBy = actor?.username || 'unknown';
-  next.updatedByRole = actor?.role || ROLES.OWNER;
-  next.updatedAt = nowIso();
-  PRODUCTS[idx] = next;
-  return cloneProduct(next);
+  const raw = await apiRequest(`/api/v1/products/${encodeURIComponent(id)}`, {
+    method: 'PATCH', body,
+  });
+  return normalizeProduct(raw);
 }
 
-export async function adjustStock(productId, adjustment = {}, { actor } = {}) {
-  requireRole({ actor }, OWNER_ROLE);
-  await delay(160);
-  const idx = PRODUCTS.findIndex((p) => p.id === productId);
-  if (idx === -1) {
-    const err = new Error('Product not found.');
-    err.code = 'NOT_FOUND';
-    throw err;
-  }
-  const delta = Number(adjustment.delta);
-  const reason = String(adjustment.reason || '').trim();
-  const note = String(adjustment.note || '').trim();
+export async function adjustStock(productId, adjustment = {}, _options = {}) {
+  const body = {
+    quantityChange: Number(adjustment.delta),
+    reason: String(adjustment.reason || '').trim(),
+  };
 
-  if (!Number.isFinite(delta) || delta === 0) {
-    const err = new Error('Quantity change must be a non-zero number (+ / -).');
-    err.code = 'INVALID_DELTA';
-    throw err;
-  }
-  if (delta < -1000 || delta > 1000) {
-    const err = new Error('Quantity change must be between -1000 and +1000.');
-    err.code = 'DELTA_OUT_OF_RANGE';
-    throw err;
-  }
-  if (!reason) {
-    const err = new Error('A reason is required for every stock adjustment.');
-    err.code = 'EMPTY_REASON';
-    throw err;
-  }
-  if (reason.length > 120) {
-    const err = new Error('Reason must be 120 characters or fewer.');
-    err.code = 'REASON_TOO_LONG';
-    throw err;
-  }
-
-  const current = PRODUCTS[idx];
-  const currentStock = ledgerCount(current.id);
-  if (currentStock + delta < 0) {
-    const err = new Error(
-      `Adjustment would drive stock negative (current ${currentStock}, change ${delta}).`,
-    );
-    err.code = 'NEGATIVE_STOCK';
-    throw err;
-  }
-
-  STOCK_LEDGER.unshift({
-    id: 'sl-' + String(STOCK_LEDGER.length + 1).padStart(3, '0'),
-    productId: current.id,
-    delta,
-    reason,
-    note,
-    createdBy: actor?.username || 'unknown',
-    createdByRole: actor?.role || ROLES.OWNER,
-    createdAt: nowIso(),
+  const raw = await apiRequest(`/api/v1/products/${encodeURIComponent(productId)}/adjustments`, {
+    method: 'POST', body,
   });
 
-  current.stock = currentStock + delta;
-  current.updatedBy = actor?.username || 'unknown';
-  current.updatedByRole = actor?.role || ROLES.OWNER;
-  current.updatedAt = nowIso();
-  PRODUCTS[idx] = current;
-
-  return { product: cloneProduct(current), entry: cloneLedger(STOCK_LEDGER[0]) };
+  const product = await getProductById(productId);
+  return { product, entry: normalizeStockEntry(raw) };
 }
 
 export async function getStockHistory(productId) {
-  await delay(120);
-  return STOCK_LEDGER.filter((r) => r.productId === productId)
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map(cloneLedger);
+  const rows = await apiRequest(`/api/v1/products/${encodeURIComponent(productId)}/stock-history`);
+  return (rows || []).map(normalizeStockEntry);
 }
 
-/** Test/admin helper — full pre-POST state. Not exported in index. */
 export function _getLedger() {
-  return STOCK_LEDGER.map(cloneLedger);
+  return [];
 }
 
-/** Internal sale lookup: no catalogue price or category; price is entered per sale. */
-export function _getSaleProducts(query = '') {
-  const q = String(query || '').trim().toLowerCase();
-  return PRODUCTS.filter((product) => product.isActive && (
-    !q || product.name.toLowerCase().includes(q) || product.id.toLowerCase().includes(q)
-  )).map((product) => ({
-    id: product.id, name: product.name, stock: product.stock,
+export async function _getSaleProducts(query = '') {
+  const q = String(query || '').trim();
+  const params = q ? `?search=${encodeURIComponent(q)}` : '';
+  const rows = await apiRequest(`/api/v1/catalog/products${params}`);
+  return (rows || []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    stock: p.stockQuantity ?? 0,
+    sku: p.productCode || '',
   }));
 }
 
-/** Validate all sale lines against the canonical catalogue before any write. */
-export function _prepareSaleLines(items) {
-  const byProduct = new Map();
-  for (const [index, item] of items.entries()) {
-    const product = PRODUCTS.find((row) => row.id === item.productId && row.isActive);
-    if (!product) {
-      const error = new Error(`Item ${index + 1}: product is unavailable.`);
-      error.code = 'PRODUCT_NOT_FOUND';
-      throw error;
-    }
-    const qty = Number(item.qty);
-    const price = Number(item.price);
-    if (!Number.isInteger(qty) || qty <= 0) {
-      const error = new Error(`Item ${index + 1}: quantity must be a whole number greater than zero.`);
-      error.code = 'INVALID_QTY';
-      throw error;
-    }
-    if (item.price === '' || item.price == null || !Number.isFinite(price) || price <= 0) {
-      const error = new Error(`Item ${index + 1}: selling price must be greater than zero.`);
-      error.code = 'INVALID_PRICE';
-      throw error;
-    }
-    const previous = byProduct.get(product.id);
-    if (previous && previous.price !== price) {
-      const error = new Error(`Item ${index + 1}: repeat product uses a different price.`);
-      error.code = 'CONFLICTING_PRICE';
-      throw error;
-    }
-    byProduct.set(product.id, {
-      productId: product.id, productName: product.name, sku: product.sku,
-      qty: qty + (previous?.qty || 0), price,
-      purchaseCostAtSale: product.purchasePrice,
-    });
-  }
-  const lines = [...byProduct.values()];
-  for (const line of lines) {
-    const product = PRODUCTS.find((row) => row.id === line.productId);
-    if (line.qty > product.stock) {
-      const error = new Error(`${product.name}: only ${product.stock} item(s) in stock.`);
-      error.code = 'INSUFFICIENT_STOCK';
-      throw error;
-    }
-  }
-  return lines;
+export function _prepareSaleLines() {
+  return [];
 }
 
-/** Commit a previously validated sale synchronously, with one stock row per product. */
-export function _commitSaleStock(lines, saleId, salesCode, actor, createdAt) {
-  for (const line of lines) {
-    const product = PRODUCTS.find((row) => row.id === line.productId);
-    product.stock -= line.qty;
-    product.updatedAt = createdAt;
-    product.updatedBy = actor?.username || 'unknown';
-    product.updatedByRole = actor?.role || null;
-    STOCK_LEDGER.unshift({
-      id: 'sl-' + String(STOCK_LEDGER.length + 1).padStart(3, '0'),
-      productId: product.id, delta: -line.qty, reason: `Sale ${salesCode}`,
-      note: `Automatic stock deduction for ${saleId}`,
-      referenceType: 'SALE', referenceId: saleId,
-      createdBy: actor?.username || 'unknown', createdByRole: actor?.role || null,
-      createdAt,
-    });
-  }
-}
+export function _commitSaleStock() {}

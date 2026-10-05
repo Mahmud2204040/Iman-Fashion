@@ -10,11 +10,31 @@ export function clearCsrfToken() {
   csrfToken = null;
 }
 
-export async function apiRequest(path, { method = 'GET', body, allowUnauthorized = false, raw = false } = {}) {
-  const headers = {};
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+function generateKey() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+export async function apiRequest(path, {
+  method = 'GET',
+  body,
+  allowUnauthorized = false,
+  raw = false,
+  headers: customHeaders = {},
+  idempotencyKey,
+} = {}) {
+  const headers = { ...customHeaders };
+  if (body !== undefined && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (method !== 'GET' && method !== 'HEAD' && csrfToken && path !== '/api/v1/auth/login') {
     headers['X-CSRF-Token'] = csrfToken;
+  }
+  if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
+    const key = idempotencyKey || headers['Idempotency-Key'] || generateKey();
+    headers['Idempotency-Key'] = key;
   }
 
   let response;
