@@ -237,6 +237,44 @@ export function createApp(prisma: PrismaClient) {
     res.json({ data: { passwordChanged: true, signedOut: true } });
   });
 
+  app.post('/api/v1/auth/username', async (req, res) => {
+    const session = await requireSession(req, res, 'OWNER'); // Only owners can change their own username using this route
+    if (!session || !requireCsrf(req, res, session.csrfToken)) return;
+    const body = req.body;
+    if (!hasOnlyKeys(body, ['currentPassword', 'newUsername']) ||
+        !validPassword(body.currentPassword) ||
+        typeof body.newUsername !== 'string' ||
+        !/^[a-zA-Z0-9._-]{3,100}$/.test(body.newUsername)) {
+      res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid field format' } });
+      return;
+    }
+    if (!await verifyPassword(body.currentPassword, session.user.passwordHash)) {
+      res.status(403).json({ error: { code: 'WRONG_PASSWORD', message: 'Current password is incorrect' } });
+      return;
+    }
+    const newUsername = body.newUsername.trim().toLowerCase();
+
+    if (newUsername === session.user.username) {
+        res.json({ data: { usernameChanged: false, signedOut: false } });
+        return;
+    }
+
+    try {
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: session.user.id }, data: { username: newUsername, authVersion: { increment: 1 } } }),
+        prisma.session.deleteMany({ where: { userId: session.user.id } }),
+      ]);
+      clearSessionCookie(res);
+      res.json({ data: { usernameChanged: true, signedOut: true } });
+    } catch (error) {
+      if (uniqueConflict(error)) {
+        res.status(409).json({ error: { code: 'USERNAME_TAKEN', message: 'Username already exists' } });
+        return;
+      }
+      throw error;
+    }
+  });
+
   app.get('/api/v1/users', async (req, res) => {
     const session = await requireSession(req, res, 'OWNER');
     if (!session) return;

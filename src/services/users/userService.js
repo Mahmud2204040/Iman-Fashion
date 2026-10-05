@@ -32,3 +32,9 @@ export function setOwnPassword(currentPassword, nextPassword) {
     method: 'POST', body: { currentPassword, newPassword: nextPassword },
   });
 }
+
+export function setOwnUsername(currentPassword, newUsername) {
+  return apiRequest('/api/v1/auth/username', {
+    method: 'POST', body: { currentPassword, newUsername },
+  });
+}

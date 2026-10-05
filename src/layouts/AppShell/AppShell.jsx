@@ -108,7 +108,7 @@ function AppShell({ children }) {
           role={drawerOpen ? 'dialog' : undefined}
           aria-modal={drawerOpen ? 'true' : undefined}
           aria-label="Navigation"
-          inert={!drawerOpen ? true : undefined}
+          inert={!drawerOpen ? "" : undefined}
         >
           <Sidebar onNavigate={closeDrawer} onToggle={closeDrawer} isDrawer />
         </div>

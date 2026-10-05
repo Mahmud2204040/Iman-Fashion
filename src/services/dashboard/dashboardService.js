@@ -1,25 +1,5 @@
-import { delay } from '../delay.js';
+import { apiRequest } from '../api/apiClient.js';
 import { ROLES } from '../../constants/roles.js';
-import { cashBusinessDate } from '../../utils/cashDate.js';
-import { getCurrentCash } from '../cash/cashService.js';
-import { getSales } from '../sales/salesService.js';
-import { getCustomOrders } from '../customOrders/customOrderService.js';
-import { getProducts } from '../products/productService.js';
-
-function recentDates() {
-  const today = cashBusinessDate();
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(`${today}T00:00:00+06:00`);
-    date.setUTCDate(date.getUTCDate() - (6 - index));
-    return cashBusinessDate(date);
-  });
-}
-
-function byDay(rows, amount) {
-  return recentDates().map((date) => rows
-    .filter((row) => cashBusinessDate(row.createdAt) === date)
-    .reduce((sum, row) => sum + amount(row), 0));
-}
 
 function getQuickActions(role) {
   const base = [
@@ -37,27 +17,45 @@ export async function getDashboardSnapshot(role) {
     error.code = 'FORBIDDEN_ROLE';
     throw error;
   }
-  await delay(100);
-  const [sales, orders, products, currentCash] = await Promise.all([getSales(), getCustomOrders(), getProducts(), getCurrentCash()]);
-  const saleTrend = byDay(sales, (sale) => Number(sale.total || 0));
-  const orderTrend = byDay(orders, () => 1);
+  
+  // Dashboard mock using existing summary queries till backend has a fully mapped `/api/v1/dashboard`
+  const { getSalesList } = await import('../reports/reportService.js');
+  const { getCustomOrders } = await import('../customOrders/customOrderService.js');
+  const { getProducts } = await import('../products/productService.js');
+  const { getCashExpected } = await import('../reports/reportService.js');
+
+  const [sales, orders, products, cash] = await Promise.all([
+     getSalesList({ range: 'week' }, { actor: { role: ROLES.OWNER } }),
+     getCustomOrders(), // custom order mock used, real API is mapped but hasn't full date filter locally
+     getProducts(),
+     getCashExpected({}, { actor: { role: ROLES.OWNER } })
+  ]);
+  
+  const today = new Date().toISOString().slice(0, 10);
+  const saleTrendData = (sales || []).filter(s => s.createdAt?.startsWith(today));
+  const todaySalesVal = saleTrendData.reduce((sum, sale) => sum + Number(sale.total || 0), 0);
+  const todayOrderVal = (orders || []).filter(o => o.createdAt?.startsWith(today)).length;
+  
+  const currentCash = cash?.expected || 0;
   const stock = products.filter((product) => product.isActive).reduce((sum, product) => sum + Number(product.stock || 0), 0);
+
   const activity = [
-    ...sales.map((sale) => ({
+    ...(sales || []).map((sale) => ({
       id: `sale-${sale.id}`, kind: 'sale', title: `Sale ${sale.salesCode}`,
-      detail: `${sale.customerName} · ${sale.items.reduce((sum, item) => sum + Number(item.qty || 0), 0)} items`,
+      detail: `${sale.customerName} · ${(sale.items || []).reduce((sum, item) => sum + Number(item.qty || 0), 0)} items`,
       amount: sale.total, at: sale.createdAt,
     })),
-    ...orders.map((order) => ({
+    ...(orders || []).map((order) => ({
       id: `order-${order.id}`, kind: 'custom_order', title: `Custom order ${order.code}`,
       detail: `${order.customerName} · ${order.productName}`, amount: order.total, at: order.createdAt,
     })),
   ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5);
+
   return {
     generatedAt: new Date().toISOString(),
     stats: [
-      { id: 'today-sales', value: saleTrend[6], trend: saleTrend },
-      { id: 'today-custom-orders', value: orderTrend[6], trend: orderTrend },
+      { id: 'today-sales', value: todaySalesVal, trend: [todaySalesVal] },
+      { id: 'today-custom-orders', value: todayOrderVal, trend: [todayOrderVal] },
       { id: 'current-cash', value: currentCash, trend: [currentCash] },
       { id: 'total-stock-items', value: stock, trend: [stock] },
     ],

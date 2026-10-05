@@ -43,3 +43,10 @@ api/.env.*
 
 # Temp / scratch
 scripts/.tmp-*
+
+# QA and Testing Artifacts
+qa-screenshots/
+visual-qa-test.mjs
+document/qa-*.jpg
+src/assets/Screenshot_*.png
+api/scripts/create-second-owner.ts

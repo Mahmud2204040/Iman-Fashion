@@ -77,7 +77,7 @@ export default function AppRoutes() {
           </RoleRoute>
         }
       />
-      <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+      <Route path="/profile" element={<RoleRoute roles={OWNER_ONLY}><ProfilePage /></RoleRoute>} />
       <Route path="/users" element={<RoleRoute roles={OWNER_ONLY}><Navigate to="/profile" replace /></RoleRoute>} />
 
       {/* Sales */}

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Spinner } from '../../components/common/index.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { createEmployee, getEmployees, setEmployeePassword, setOwnPassword, updateEmployee } from '../../services/users/userService.js';
+import { createEmployee, getEmployees, setEmployeePassword, setOwnPassword, setOwnUsername, updateEmployee } from '../../services/users/userService.js';
 import styles from './ProfilePage.module.css';
 
 export default function ProfilePage() {
@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [own, setOwn] = useState({ current: '', next: '', confirm: '' });
+  const [ownUsername, setOwnUsernameState] = useState({ currentPassword: '', newUsername: '' });
   const [newEmployee, setNewEmployee] = useState({ username: '', password: '', confirm: '' });
   const [editing, setEditing] = useState('');
   const [editName, setEditName] = useState('');
@@ -35,6 +36,23 @@ export default function ProfilePage() {
   useEffect(() => { refresh(); }, [refresh]);
 
   function beginAction() { setError(''); setNotice(''); setBusy(true); }
+
+  
+  async function changeUsername(event) {
+    event.preventDefault();
+    if (!ownUsername.newUsername || ownUsername.newUsername === user?.username) return;
+    beginAction();
+    try {
+      await setOwnUsername(ownUsername.currentPassword, ownUsername.newUsername);
+      setOwnUsernameState({ currentPassword: '', newUsername: '' });
+      setNotice('Username updated correctly. Please log in again.');
+      setTimeout(() => logout(), 2000);
+    } catch (caught) {
+      setError(caught?.message || 'Could not update username.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function changeOwnPassword(event) {
     event.preventDefault();
