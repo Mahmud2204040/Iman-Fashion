@@ -78,17 +78,31 @@ function Sidebar({ onNavigate, collapsed = false, onToggle, isDrawer = false }) 
       </nav>
 
       <div className={styles.sidebarFooter}>
-        <NavLink to="/profile" onClick={onNavigate} className={styles.sidebarUser} aria-label={t('My profile')}>
-          <div className={styles.sidebarAvatar} aria-hidden="true">
-            {(user && user.username ? user.username : '?').slice(0, 1).toUpperCase()}
-          </div>
-          {(!collapsed || isDrawer) && <div className={styles.sidebarUserMeta}>
-            <div className={styles.sidebarUserName}>{user ? user.username : 'Guest'}</div>
-            <div className={styles.sidebarUserRole}>
-              {role === ROLES.OWNER ? 'Owner' : role === ROLES.EMPLOYEE ? 'Employee' : 'Signed out'}
+        {role === ROLES.OWNER ? (
+          <NavLink to="/profile" onClick={onNavigate} className={styles.sidebarUser} aria-label={t('My profile')}>
+            <div className={styles.sidebarAvatar} aria-hidden="true">
+              {(user && user.username ? user.username : '?').slice(0, 1).toUpperCase()}
             </div>
-          </div>}
-        </NavLink>
+            {(!collapsed || isDrawer) && <div className={styles.sidebarUserMeta}>
+              <div className={styles.sidebarUserName}>{user ? user.username : 'Guest'}</div>
+              <div className={styles.sidebarUserRole}>
+                {t('Owner')}
+              </div>
+            </div>}
+          </NavLink>
+        ) : (
+          <div className={styles.sidebarUser} aria-label={t('My profile')}>
+            <div className={styles.sidebarAvatar} aria-hidden="true">
+              {(user && user.username ? user.username : '?').slice(0, 1).toUpperCase()}
+            </div>
+            {(!collapsed || isDrawer) && <div className={styles.sidebarUserMeta}>
+              <div className={styles.sidebarUserName}>{user ? user.username : 'Guest'}</div>
+              <div className={styles.sidebarUserRole}>
+                {t('Employee')}
+              </div>
+            </div>}
+          </div>
+        )}
         <button
           type="button"
           className={styles.sidebarSignout}
