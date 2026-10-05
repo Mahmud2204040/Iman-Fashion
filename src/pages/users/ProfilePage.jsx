@@ -117,7 +117,7 @@ export default function ProfilePage() {
 
       <section className={styles.section}>
         <h2>{t('Change username')}</h2>
-        <p className={styles.helpText}>{t('Your current username is:')} <strong>{user?.username}</strong>. {t('You will be logged out after changing your username.')}</p>
+        <p className={styles.helpText}>{t('Your current name is:')} <strong>{user?.name || user?.username}</strong>, {t('and your username is:')} <strong>{user?.username}</strong>. {t('You will be logged out after changing your username.')}</p>
         <form className={styles.inlineForm} onSubmit={changeUsername}>
           <label>
             {t('Current password')}
