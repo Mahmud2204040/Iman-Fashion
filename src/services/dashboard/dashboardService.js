@@ -38,11 +38,10 @@ export async function getDashboardSnapshot(role) {
     throw error;
   }
   await delay(100);
-  const [sales, orders, products] = await Promise.all([getSales(), getCustomOrders(), getProducts()]);
+  const [sales, orders, products, currentCash] = await Promise.all([getSales(), getCustomOrders(), getProducts(), getCurrentCash()]);
   const saleTrend = byDay(sales, (sale) => Number(sale.total || 0));
   const orderTrend = byDay(orders, () => 1);
   const stock = products.filter((product) => product.isActive).reduce((sum, product) => sum + Number(product.stock || 0), 0);
-  const currentCash = getCurrentCash();
   const activity = [
     ...sales.map((sale) => ({
       id: `sale-${sale.id}`, kind: 'sale', title: `Sale ${sale.salesCode}`,

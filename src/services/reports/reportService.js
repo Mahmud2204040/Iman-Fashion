@@ -558,8 +558,9 @@ export async function getExpensesByCategory(filters = {}, { actor } = {}) {
 export async function getCashOpening(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(60);
+  const summary = await getCashPeriodSummary(filters, { actor });
   return {
-    opening: getCashPeriodSummary(filters, { actor }).opening,
+    opening: summary.opening,
     derivedFrom: 'closing-balance',
     note: 'Opening is carried forward from all earlier cash movements (Asia/Dhaka).',
   };
@@ -568,7 +569,8 @@ export async function getCashOpening(filters = {}, { actor } = {}) {
 export async function getCashInReport(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(120);
-  return getCashPeriodSummary(filters, { actor }).rows
+  const summary = await getCashPeriodSummary(filters, { actor });
+  return summary.rows
     .filter((r) => r.type === 'CASH_IN')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -576,7 +578,8 @@ export async function getCashInReport(filters = {}, { actor } = {}) {
 export async function getCashOutReport(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(120);
-  return getCashPeriodSummary(filters, { actor }).rows
+  const summary = await getCashPeriodSummary(filters, { actor });
+  return summary.rows
     .filter((r) => r.type === 'CASH_OUT')
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
@@ -584,8 +587,9 @@ export async function getCashOutReport(filters = {}, { actor } = {}) {
 export async function getCashAdjustmentsReport(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(40);
+  const summary = await getCashPeriodSummary(filters, { actor });
   return {
-    rows: getCashPeriodSummary(filters, { actor }).rows.filter((row) => row.type === 'CASH_ADJUSTMENT'),
+    rows: summary.rows.filter((row) => row.type === 'CASH_ADJUSTMENT'),
     reconciliations: (await getCashReconciliations({}, { actor })).filter((row) => inRange(row.countedAt, cashDateRange(filters))),
     note: 'Counts are saved even when cash matches. Only explicitly applied adjustments change cash.',
   };
@@ -594,8 +598,9 @@ export async function getCashAdjustmentsReport(filters = {}, { actor } = {}) {
 export async function getCashExpected(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   await delay(120);
+  const summary = await getCashPeriodSummary(filters, { actor });
   return {
-    ...getCashPeriodSummary(filters, { actor }),
+    ...summary,
     note: 'Closing = carried opening + initial setup in period + cash in − cash out + signed adjustments. Dates use Asia/Dhaka.',
   };
 }
