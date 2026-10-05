@@ -33,3 +33,13 @@ Thumbs.db
 
 # Project internal
 .puku
+.ai/
+.claude/
+AGENTS.md
+
+# API secrets
+api/.env
+api/.env.*
+
+# Temp / scratch
+scripts/.tmp-*
