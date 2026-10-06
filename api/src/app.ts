@@ -92,7 +92,7 @@ export function createApp(prisma: PrismaClient) {
     if (origin && ALLOWED_ORIGINS.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, Idempotency-Key');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token, Idempotency-Key, X-Cache-Bypass');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
       res.setHeader('Vary', 'Origin');
     }

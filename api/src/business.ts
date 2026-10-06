@@ -3,6 +3,7 @@ import type { Express, Request, Response } from 'express';
 import type { PrismaClient, Prisma } from './generated/prisma/client.js';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
+import { l4CacheMiddleware } from './cache-middleware.js';
 
 type Session = { user: { id: string; role: string }; csrfToken: string };
 type Auth = (req: Request, res: Response, role?: 'OWNER') => Promise<Session | null>;
@@ -237,6 +238,7 @@ function respondError(res: Response, error: unknown) {
 const uniqueError = (error: unknown) => plain(error) && error.code === 'P2002';
 
 export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authenticate: Auth, csrf: Csrf) {
+  app.use('/api/v1', l4CacheMiddleware);
   type Handler = (req: Request, res: Response, session: Session) => Promise<void>;
   const route = (method: 'get' | 'post' | 'patch', path: string, role: 'OWNER' | undefined, handler: Handler) => {
     app[method](path, async (req, res) => {
