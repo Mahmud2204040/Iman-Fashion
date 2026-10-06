@@ -1,3 +1,5 @@
+import { getL2Cache, setL2Cache } from '../../cache/l2Cache.js';
+
 const configuredBase = import.meta.env.VITE_API_BASE_URL;
 const apiBase = (configuredBase || `${window.location.protocol}//${window.location.hostname}:4440`).replace(/\/$/, '');
 let csrfToken = null;
@@ -24,6 +26,8 @@ export async function apiRequest(path, {
   raw = false,
   headers: customHeaders = {},
   idempotencyKey,
+  cacheMode = 'default',
+  onCacheMeta,
 } = {}) {
   const headers = { ...customHeaders };
   if (body !== undefined && !headers['Content-Type']) {
@@ -35,6 +39,28 @@ export async function apiRequest(path, {
   if (method === 'POST' || method === 'PATCH' || method === 'PUT') {
     const key = idempotencyKey || headers['Idempotency-Key'] || generateKey();
     headers['Idempotency-Key'] = key;
+  }
+  
+  if (cacheMode === 'bypass') {
+    headers['X-Cache-Bypass'] = '1';
+  }
+
+  // Check L2 cache for eligible GET requests
+  const isCacheableGet = method === 'GET' && cacheMode === 'default' && !path.startsWith('/api/v1/auth/');
+  const cacheKey = isCacheableGet ? `${apiBase}${path}` : null;
+
+  if (isCacheableGet && !navigator.onLine) {
+    const cachedRecord = await getL2Cache(cacheKey);
+    if (cachedRecord) {
+      if (onCacheMeta) onCacheMeta({ source: 'L2', offline: true, fetchedAt: cachedRecord.timestamp });
+      return raw ? cachedRecord.data : cachedRecord.data?.data;
+    }
+  }
+
+  if (!navigator.onLine && method !== 'GET' && method !== 'HEAD') {
+    const error = new Error('You are offline. Changes cannot be saved.');
+    error.code = 'OFFLINE_READ_ONLY';
+    throw error;
   }
 
   let response;
@@ -55,6 +81,7 @@ export async function apiRequest(path, {
   let result;
   try { result = await response.json(); }
   catch { result = null; }
+  
   if (!response.ok) {
     const error = new Error(result?.error?.message || 'Request failed. Please try again.');
     error.code = result?.error?.code || `HTTP_${response.status}`;
@@ -65,5 +92,13 @@ export async function apiRequest(path, {
     }
     throw error;
   }
+
+  // Write successful GETs to L2 Cache
+  if (isCacheableGet && result) {
+    setL2Cache(cacheKey, result);
+  }
+
+  if (onCacheMeta) onCacheMeta({ source: 'network', fetchedAt: Date.now() });
+
   return raw ? result : result?.data;
 }

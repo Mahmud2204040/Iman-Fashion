@@ -21,6 +21,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createIsolatedQueryClient } from '../cache/queryClient.js';
 import { setupCrossTabInvalidation } from '../cache/mutations.js';
+import { clearL2Cache } from '../cache/l2Cache.js';
 
 import * as authService from '../services/auth/authService.js';
 import { AuthContext } from './authContext.js';
@@ -48,7 +49,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const expired = () => setUser(null);
+    const expired = () => {
+      clearL2Cache();
+      setUser(null);
+    };
     window.addEventListener('ni-fashion:session-expired', expired);
     return () => window.removeEventListener('ni-fashion:session-expired', expired);
   }, []);
@@ -61,6 +65,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await authService.logout();
+    clearL2Cache();
     setUser(null);
   }, []);
 
