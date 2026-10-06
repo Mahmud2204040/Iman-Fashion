@@ -70,9 +70,10 @@ function requestKey(req: Request): string {
   return value.trim();
 }
 
-function serializeSale(sale: Awaited<ReturnType<Tx['sale']['findUniqueOrThrow']>> & { items?: Array<Record<string, unknown>> }, owner: boolean) {
+function serializeSale(sale: Awaited<ReturnType<Tx['sale']['findUniqueOrThrow']>> & { items?: Array<Record<string, unknown>>; customer?: { name: string } | null }, owner: boolean) {
   return {
     id: sale.id, salesCode: sale.salesCode, customerId: sale.customerId,
+    customerName: sale.customer ? sale.customer.name : '',
     totalAmount: sale.totalAmount.toString(), status: sale.status, settlementSource: sale.settlementSource,
     saleDate: sale.saleDate, notes: sale.notes, createdById: sale.createdById,
     ...(sale.items ? { items: sale.items.map((item) => ({
@@ -216,7 +217,7 @@ async function stockAndSale(tx: Tx, input: ReturnType<typeof saleInput>, actorId
       quantity: item.quantity, sellingPrice: item.sellingPrice,
       purchaseCostAtSale: products.get(item.productId)!.purchasePrice, lineTotal: money(item.line),
     })) },
-  }, include: { items: true } });
+  }, include: { items: true, customer: { select: { name: true } } } });
   await saleEvents(tx, sale, at, actorId, false);
   await Promise.all(sale.items.map(item => inventoryEvent(tx, { key: `inventory:sale-item:${item.id}`,
     sourceType: 'SALE_ITEM', sourceId: item.id, productId: item.productId,
@@ -426,7 +427,7 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
   route('get', '/api/v1/customers/:id/sales', undefined, async (req, res, session) => {
     const customerId = String(req.params.id);
     if (!uuid(customerId)) throw bad('Invalid customer ID');
-    const rows = await prisma.sale.findMany({ where: { customerId }, include: { items: true }, orderBy: { saleDate: 'desc' }, take: 100 });
+    const rows = await prisma.sale.findMany({ where: { customerId }, include: { items: true, customer: { select: { name: true } } }, orderBy: { saleDate: 'desc' }, take: 100 });
     res.json({ data: rows.map((row) => serializeSale(row, session.user.role === 'OWNER')) });
   });
 
@@ -1270,7 +1271,7 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
       ...dateFilter
     };
     const [rows, total] = await prisma.$transaction([
-      prisma.sale.findMany({ where, include: { items: true }, orderBy: { saleDate: (req.query.sort === 'oldest' ? 'asc' : 'desc') }, skip, take }),
+      prisma.sale.findMany({ where, include: { items: true, customer: { select: { name: true } } }, orderBy: { saleDate: (req.query.sort === 'oldest' ? 'asc' : 'desc') }, skip, take }),
       prisma.sale.count({ where }),
     ]);
     res.json({ data: rows.map((row) => serializeSale(row, session.user.role === 'OWNER')), meta: { page, pageSize, total } });
@@ -1279,7 +1280,7 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
   route('get', '/api/v1/sales/:id', undefined, async (req, res, session) => {
     const id = String(req.params.id);
     if (!uuid(id)) throw bad('Invalid sale ID');
-    const sale = await prisma.sale.findUnique({ where: { id }, include: { items: true, correctionFrom: true, correctionInto: true } });
+    const sale = await prisma.sale.findUnique({ where: { id }, include: { items: true, customer: { select: { name: true } }, correctionFrom: true, correctionInto: true } });
     if (!sale) throw new ApiError(404, 'NOT_FOUND', 'Sale not found');
     res.json({ data: { ...serializeSale(sale, session.user.role === 'OWNER'),
       correction: sale.correctionFrom ? { kind: sale.correctionFrom.kind, replacementSaleId: sale.correctionFrom.replacementSaleId,
@@ -1290,7 +1291,7 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
   route('post', '/api/v1/sales', undefined, async (req, res, session) => {
     const input = saleInput(req.body, false);
     const key = requestKey(req), fp = fingerprint(req.body);
-    const replay = await prisma.sale.findUnique({ where: { createdById_requestKey: { createdById: session.user.id, requestKey: key } }, include: { items: true } });
+    const replay = await prisma.sale.findUnique({ where: { createdById_requestKey: { createdById: session.user.id, requestKey: key } }, include: { items: true, customer: { select: { name: true } } } });
     if (replay) {
       if (replay.requestFingerprint !== fp) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'Key was used for a different request');
       res.status(200).json({ data: serializeSale(replay, session.user.role === 'OWNER') }); return;
@@ -1308,7 +1309,7 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
       if (uniqueError(error)) {
         const winner = await prisma.sale.findUnique({ where: { createdById_requestKey: {
           createdById: session.user.id, requestKey: key,
-        } }, include: { items: true } });
+        } }, include: { items: true, customer: { select: { name: true } } } });
         if (winner?.requestFingerprint === fp) { res.json({ data: serializeSale(winner, session.user.role === 'OWNER') }); return; }
         if (winner) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'Key was used for a different request');
       }

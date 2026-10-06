@@ -2,23 +2,6 @@ import { apiRequest } from '../api/apiClient.js';
 import { createCustomer as createSharedCustomer, getCustomers, getCustomerById } from '../customers/customerService.js';
 import { _getSaleProducts, getProductById as getProductFromCatalogue } from '../products/productService.js';
 
-let cachedCustomerMap = null;
-let lastCustomerFetchTime = 0;
-
-async function getCustomerMap() {
-  const now = Date.now();
-  if (!cachedCustomerMap || now - lastCustomerFetchTime > 30000) {
-    try {
-      const result = await getCustomers({ pageSize: 5000 });
-      cachedCustomerMap = new Map((result.data || []).map((c) => [c.id, c.name]));
-      lastCustomerFetchTime = now;
-    } catch {
-      if (!cachedCustomerMap) cachedCustomerMap = new Map();
-    }
-  }
-  return cachedCustomerMap;
-}
-
 function normalizeSaleItem(item) {
   const quantity = item.quantity ?? item.qty ?? 0;
   const sellingPrice = item.sellingPrice != null ? Number(item.sellingPrice) : (item.price != null ? Number(item.price) : 0);
@@ -40,10 +23,10 @@ function normalizeSaleItem(item) {
   };
 }
 
-function normalizeSale(raw, customerMap = new Map()) {
+function normalizeSale(raw) {
   const totalAmount = raw.totalAmount != null ? Number(raw.totalAmount) : (raw.total != null ? Number(raw.total) : 0);
   const saleDate = raw.saleDate || raw.createdAt || new Date().toISOString();
-  const customerName = raw.customerName || (raw.customerId ? customerMap.get(raw.customerId) : '') || '';
+  const customerName = raw.customerName || '';
 
   return {
     ...raw,
@@ -68,11 +51,7 @@ export async function searchCustomers(query = '') {
 }
 
 export async function createCustomer(payload = {}, options = {}) {
-  const created = await createSharedCustomer(payload, options);
-  if (cachedCustomerMap && created?.id) {
-    cachedCustomerMap.set(created.id, created.name);
-  }
-  return created;
+  return createSharedCustomer(payload, options);
 }
 
 export async function searchProducts(query = '') {
@@ -84,7 +63,6 @@ export async function getProductById(productId) {
 }
 
 export async function getSales({ page = 1, pageSize = 10, search = '', date = '', sort = 'newest' } = {}) {
-  const customerMap = await getCustomerMap();
   const params = new URLSearchParams();
   if (page) params.set('page', page);
   if (pageSize) params.set('pageSize', pageSize);
@@ -94,7 +72,7 @@ export async function getSales({ page = 1, pageSize = 10, search = '', date = ''
 
   const result = await apiRequest(`/api/v1/sales?${params.toString()}`, { raw: true });
   return {
-    data: (result.data || []).map((sale) => normalizeSale(sale, customerMap)),
+    data: (result.data || []).map((sale) => normalizeSale(sale)),
     meta: result.meta || { page, pageSize, total: 0 }
   };
 }
@@ -114,7 +92,7 @@ export async function getSaleById(id, _options = {}) {
     }
     const customerMap = new Map();
     if (raw.customerId && customerName) customerMap.set(raw.customerId, customerName);
-    return normalizeSale({ ...raw, customerName }, customerMap);
+    return normalizeSale({ ...raw, customerName });
   } catch (err) {
     if (err.status === 404) return null;
     throw err;
@@ -124,9 +102,8 @@ export async function getSaleById(id, _options = {}) {
 export async function searchSalesByCode(code = '', _options = {}) {
   const q = String(code || '').trim();
   if (!q) return [];
-  const customerMap = await getCustomerMap();
   const result = await apiRequest(`/api/v1/sales?search=${encodeURIComponent(q)}&pageSize=100`, { raw: true });
-  return (result.data || []).map((sale) => normalizeSale(sale, customerMap));
+  return (result.data || []).map((sale) => normalizeSale(sale));
 }
 
 export async function completeSale(payload, _options = {}) {
