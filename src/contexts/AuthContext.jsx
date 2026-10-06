@@ -17,7 +17,10 @@
  * Components MUST go through this context — never read storage directly.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createIsolatedQueryClient } from '../cache/queryClient.js';
+import { setupCrossTabInvalidation } from '../cache/mutations.js';
 
 import * as authService from '../services/auth/authService.js';
 import { AuthContext } from './authContext.js';
@@ -61,6 +64,21 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  // Create an account-scoped QueryClient that resets on logout/account switch
+  const lastUserId = useRef(user?.id);
+  const clientRef = useRef(null);
+  if (!clientRef.current) {
+    clientRef.current = createIsolatedQueryClient();
+    setupCrossTabInvalidation(clientRef.current);
+  }
+
+  if (user?.id !== lastUserId.current) {
+    if (clientRef.current) clientRef.current.clear();
+    clientRef.current = createIsolatedQueryClient();
+    setupCrossTabInvalidation(clientRef.current);
+    lastUserId.current = user?.id;
+  }
+
   const value = useMemo(() => {
     const role = user ? user.role : null;
     return {
@@ -73,5 +91,11 @@ export function AuthProvider({ children }) {
     };
   }, [user, isLoading, login, logout]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      <QueryClientProvider client={clientRef.current}>
+        {children}
+      </QueryClientProvider>
+    </AuthContext.Provider>
+  );
 }

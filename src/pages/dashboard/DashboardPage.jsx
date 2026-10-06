@@ -8,8 +8,9 @@
  * familiar SaaS pattern. No decorative gradients: the cards below
  * already provide the visual weight.
  */
-import { useEffect, useState } from 'react';
 
+import { useQuery } from '@tanstack/react-query';
+import { createQueryKey, DOMAIN } from '../../cache/queryKeys.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useTicker } from '../../hooks/useTicker.js';
@@ -30,34 +31,15 @@ export default function DashboardPage() {
   // dashboard open across midnight.
   const now = useTicker(60_000);
 
-  const [snapshot, setSnapshot] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [reloadKey, setReloadKey] = useState(0);
+  const { data: snapshot, isLoading: loading, error: queryError, refetch } = useQuery({
+    queryKey: createQueryKey({ user, domain: DOMAIN.DASHBOARD, resource: 'summary' }),
+    queryFn: () => getDashboardSnapshot(role),
+    staleTime: 0, // Critical view
+    refetchInterval: 30000, // Refetch every 30s
+    refetchOnWindowFocus: true,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-
-    getDashboardSnapshot(role)
-      .then((data) => {
-        if (cancelled) return;
-        setSnapshot(data);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err?.message || 'Could not load dashboard.');
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [role, reloadKey]);
+  const error = queryError?.message || '';
 
   const displayName =
     user?.username || user?.name || (role === ROLES.OWNER ? 'Owner' : 'Friend');
@@ -81,7 +63,7 @@ export default function DashboardPage() {
           <p className={styles.errorText}>
             {t(error || 'Dashboard unavailable.')}
           </p>
-          <button type="button" onClick={() => setReloadKey((value) => value + 1)}>{t('Try again')}</button>
+          <button type="button" onClick={() => refetch()}>{t('Try again')}</button>
         </div>
       </main>
     );

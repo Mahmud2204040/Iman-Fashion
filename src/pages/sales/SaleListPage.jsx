@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { createQueryKey, DOMAIN } from '../../cache/queryKeys.js';
 
 import { SearchInput, Spinner } from '../../components/common/index.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -95,7 +96,7 @@ export default function SaleListPage() {
   const queryClient = useQueryClient();
 
   const { data: qData, isLoading: loading, isError, error, refetch: reloadSales } = useQuery({
-    queryKey: ['sales', page, PAGE_SIZE, query, dateFilter, sortOrder],
+    queryKey: createQueryKey({ user, domain: DOMAIN.SALES, params: { page, pageSize: PAGE_SIZE, search: query, date: dateFilter, sort: sortOrder } }),
     queryFn: () => getSales({ page, pageSize: PAGE_SIZE, search: query, date: dateFilter, sort: sortOrder }),
     placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,

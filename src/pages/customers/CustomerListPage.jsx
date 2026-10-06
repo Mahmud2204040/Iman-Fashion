@@ -15,6 +15,8 @@ import T from '../../components/common/LocalizedText.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { createQueryKey, DOMAIN } from '../../cache/queryKeys.js';
+import { useAuth } from '../../hooks/useAuth.js';
 
 import {
   Card,
@@ -37,9 +39,10 @@ export default function CustomerListPage() {
   const query = searchParams.get('q') || '';
   
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const { data: qData, isLoading: loading, error: errorObj } = useQuery({
-    queryKey: ['customers', page, PAGE_SIZE, query],
+    queryKey: createQueryKey({ user, domain: DOMAIN.CUSTOMERS, params: { page, pageSize: PAGE_SIZE, search: query } }),
     queryFn: () => getCustomers({ page, pageSize: PAGE_SIZE, search: query }),
     placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000,
