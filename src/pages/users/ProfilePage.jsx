@@ -8,6 +8,7 @@ import {
   createEmployee,
   getEmployees,
   setEmployeePassword,
+  setOwnName,
   setOwnPassword,
   setOwnUsername,
   updateEmployee,
@@ -91,6 +92,8 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
   const [passwordTarget, setPasswordTarget] = useState('');
   const [employeePassword, setEmployeePasswordDraft] = useState({ current: '', next: '', confirm: '' });
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileName, setProfileName] = useState(user.name || '');
 
   const refresh = useCallback(async () => {
     if (!isOwner) return;
@@ -107,6 +110,23 @@ export default function ProfilePage() {
   useEffect(() => { refresh(); }, [refresh]);
 
   function beginAction() { setError(''); setNotice(''); setBusy(true); }
+
+  async function saveProfileName(event) {
+    event.preventDefault();
+    const trimmed = profileName.trim();
+    if (!trimmed || trimmed === user.name) { setEditingProfile(false); return; }
+    beginAction();
+    try {
+      await setOwnName(trimmed);
+      setEditingProfile(false);
+      setNotice('Profile updated.');
+      setTimeout(() => window.location.reload(), 800);
+    } catch (caught) {
+      setError(caught.message || 'Could not update name.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function changeUsername(event) {
     event.preventDefault();
@@ -228,10 +248,22 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-        <button className={styles.outlined} type="button">
-          <PencilIcon /> {t('Edit profile')}
+        <button className={styles.outlined} type="button" onClick={() => { setEditingProfile(!editingProfile); setProfileName(user.name || ''); }}>
+          <PencilIcon /> {t(editingProfile ? 'Cancel' : 'Edit profile')}
         </button>
       </div>
+
+      {editingProfile ? (
+        <div className={styles.card}>
+          <form className={styles.form} style={{ flexDirection: 'row', alignItems: 'flex-end', gap: '12px' }} onSubmit={saveProfileName}>
+            <div className={styles.field} style={{ flex: 1 }}>
+              <label>{t('Display name')}</label>
+              <input required minLength={1} maxLength={150} value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+            </div>
+            <button className={styles.primary} type="submit" disabled={busy}>{t('Save')}</button>
+          </form>
+        </div>
+      ) : null}
 
       {/* Security Settings */}
       <div className={styles.sectionWrapper}>

@@ -275,6 +275,21 @@ export function createApp(prisma: PrismaClient) {
     }
   });
 
+  app.patch('/api/v1/auth/name', async (req, res) => {
+    const session = await requireSession(req, res, 'OWNER');
+    if (!session || !requireCsrf(req, res, session.csrfToken)) return;
+    const body = req.body;
+    if (!hasOnlyKeys(body, ['name']) || !displayName(body.name)) {
+      res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid name' } });
+      return;
+    }
+    const updated = await prisma.user.update({
+      where: { id: session.user.id },
+      data: { name: body.name.trim() },
+    });
+    res.json({ data: { user: publicUser(updated) } });
+  });
+
   app.get('/api/v1/users', async (req, res) => {
     const session = await requireSession(req, res, 'OWNER');
     if (!session) return;
