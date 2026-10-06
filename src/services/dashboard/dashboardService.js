@@ -18,7 +18,7 @@ export async function getDashboardSnapshot(role) {
     throw error;
   }
   
-  const result = await apiRequest('/api/v1/dashboard/summary');
+  const result = await apiRequest('/api/v1/dashboard/summary', { raw: true });
   return {
     ...result.data,
     quickActions: getQuickActions(role),
