@@ -62,7 +62,7 @@ export async function getSalesByProduct(filters = {}, { actor } = {}) {
 export async function getSalesList(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   const { getSales } = await import('../sales/salesService.js');
-  const result = await getSales({ pageSize: 5000 });
+  const result = await getSales({ pageSize: 100 });
   return result.data || [];
 }
 
@@ -100,7 +100,7 @@ export async function getStockAdjustmentsReport(filters = {}, { actor } = {}) {
 export async function getCustomerListReport({ actor } = {}) {
   requireOwner({ actor });
   const { getCustomers } = await import('../customers/customerService.js');
-  const result = await getCustomers({ pageSize: 5000 });
+  const result = await getCustomers({ pageSize: 100 });
   return result.data || [];
 }
 

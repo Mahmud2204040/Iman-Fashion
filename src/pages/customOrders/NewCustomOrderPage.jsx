@@ -7,7 +7,8 @@ import CustomerCreateFields from '../../components/customers/CustomerCreateField
 import { useCustomerDraft } from '../../components/customers/useCustomerDraft.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
-import { createCustomOrder, listCustomersForCustomOrders } from '../../services/customOrders/customOrderService.js';
+import { createCustomOrder } from '../../services/customOrders/customOrderService.js';
+import { getCustomers } from '../../services/customers/customerService.js';
 import { createCustomer } from '../../services/customers/customerService.js';
 import { formatCurrency } from '../../utils/format.js';
 import backIcon from '../../assets/figma/new-customer/arrow-left.svg';
@@ -27,6 +28,7 @@ export default function NewCustomOrderPage() {
   const navigate = useNavigate();
 
   const [customers, setCustomers] = useState([]);
+  const [customerSearch, setCustomerSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [customerId, setCustomerId] = useState('');
@@ -46,16 +48,21 @@ export default function NewCustomOrderPage() {
     let cancelled = false;
     setLoading(true);
     setLoadError('');
-    listCustomersForCustomOrders()
-      .then((data) => {
+    // Server-side search with max 50 items (avoids getting 5000)
+    getCustomers({ page: 1, pageSize: 50, search: customerSearch })
+      .then((result) => {
         if (cancelled) return;
-        setCustomers(data);
-        setCustomerId((current) => current || data[0]?.id || '');
+        const active = (result.data || []).filter(c => c.isActive);
+        setCustomers(active);
+        setCustomerId((current) => {
+          if (current && active.some(c => c.id === current)) return current;
+          return active[0]?.id || '';
+        });
       })
       .catch((error) => { if (!cancelled) setLoadError(error?.message || 'Could not load customers.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [reloadKey]);
+  }, [reloadKey, customerSearch]);
 
   const customer = useMemo(() => customers.find((item) => item.id === customerId) || null, [customers, customerId]);
   const numericTotal = Number(total) || 0;
@@ -114,7 +121,11 @@ export default function NewCustomOrderPage() {
           <section className={styles.formSection} aria-labelledby="order-customer-heading">
             <div className={styles.sectionHead}><h2 id="order-customer-heading"><T>Customer</T></h2><span><T>* Required fields</T></span></div>
             <div className={styles.customerFields}>
-              <FormField label="Customer" htmlFor="co-customer" required>
+              
+              <FormField label="Search customer" htmlFor="co-customer-search">
+                {(controlProps) => <Input {...controlProps} value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Type name or phone..." />}
+              </FormField>
+              <FormField label="Select customer" htmlFor="co-customer" required>
                 {(controlProps) => <span className={styles.selectWrap}>
                   <Select {...controlProps} value={customerId} onChange={(event) => setCustomerId(event.target.value)}
                     options={customers.map((item) => ({ value: item.id, label: `${item.name} · ${item.phone || item.customerCode || item.id}` }))}
