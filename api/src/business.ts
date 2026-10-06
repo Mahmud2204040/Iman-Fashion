@@ -145,7 +145,7 @@ async function saleEvents(tx: Tx, sale: { id: string; customerId: string; totalA
   await event(tx, { key: `sale:${sale.id}:revenue:${suffix}`, metric: 'SALES_REVENUE',
     kind: reversal ? 'SALE_REVERSED' : 'SALE_COMPLETED', sourceType: 'SALE', sourceId: sale.id,
     amount: money(asCents(sale.totalAmount) * (reversal ? -1n : 1n)), at, actorId, customerId: sale.customerId });
-  for (const item of sale.items) {
+  await Promise.all(sale.items.map(async (item) => {
     await event(tx, { key: `sale-item:${item.id}:revenue:${suffix}`, metric: 'SALES_PRODUCT_REVENUE',
       kind: reversal ? 'SALE_REVERSED' : 'SALE_COMPLETED', sourceType: 'SALE_ITEM', sourceId: item.id,
       amount: money(asCents(item.lineTotal) * (reversal ? -1n : 1n)), at, actorId,
@@ -155,15 +155,15 @@ async function saleEvents(tx: Tx, sale: { id: string; customerId: string; totalA
         kind: reversal ? 'SALE_REVERSED' : 'SALE_COMPLETED', sourceType: 'SALE_ITEM', sourceId: item.id,
         amount: money(BigInt(item.quantity) * 100n * (reversal ? -1n : 1n)), at, actorId,
         customerId: sale.customerId, productId: item.productId });
-      continue;
+      return;
     }
     const cost = asCents(item.purchaseCostAtSale) * BigInt(item.quantity);
-    if (cost === 0n) continue;
+    if (cost === 0n) return;
     await event(tx, { key: `sale-item:${item.id}:cost:${suffix}`, metric: 'PRODUCT_COST',
       kind: reversal ? 'SALE_REVERSED' : 'SALE_COMPLETED', sourceType: 'SALE_ITEM', sourceId: item.id,
       amount: money(cost * (reversal ? -1n : 1n)), at, actorId,
       customerId: sale.customerId, productId: item.productId });
-  }
+  }));
 }
 
 async function inventoryEvent(tx: Tx, input: { key: string; sourceType: string; sourceId: string;
@@ -180,15 +180,28 @@ async function stockAndSale(tx: Tx, input: ReturnType<typeof saleInput>, actorId
   settlementSource: 'DIRECT_CASH' | 'REPLACEMENT_NETTED', key?: string, fp?: string) {
   const customer = await tx.customer.findUnique({ where: { id: input.customerId } });
   if (!customer || customer.status !== 'ACTIVE') throw new ApiError(409, 'CUSTOMER_INACTIVE', 'Active customer required');
-  const products = new Map<string, Awaited<ReturnType<Tx['product']['findUnique']>>>();
-  for (const item of [...input.items].sort((a, b) => a.productId.localeCompare(b.productId))) {
-    const product = await tx.product.findUnique({ where: { id: item.productId } });
-    if (!product || product.status !== 'ACTIVE') throw new ApiError(409, 'PRODUCT_INACTIVE', 'Active product required');
-    const updated = await tx.product.updateMany({ where: { id: item.productId, status: 'ACTIVE', stockQuantity: { gte: item.quantity } },
-      data: { stockQuantity: { decrement: item.quantity }, updatedById: actorId } });
-    if (updated.count !== 1) throw new ApiError(409, 'INSUFFICIENT_STOCK', `Insufficient stock for ${product.name}`);
-    products.set(item.productId, product);
+
+  const productIds = input.items.map(i => i.productId);
+  const foundProducts = await tx.product.findMany({ where: { id: { in: productIds } } });
+
+  const products = new Map<string, typeof foundProducts[0]>();
+  for (const product of foundProducts) {
+    if (product.status !== 'ACTIVE') throw new ApiError(409, 'PRODUCT_INACTIVE', 'Active product required');
+    products.set(product.id, product);
   }
+
+  for (const item of input.items) {
+    if (!products.has(item.productId)) throw new ApiError(409, 'PRODUCT_NOT_FOUND', 'Product not found');
+  }
+
+  await Promise.all(input.items.map(async (item) => {
+    const updated = await tx.product.updateMany({
+      where: { id: item.productId, status: 'ACTIVE', stockQuantity: { gte: item.quantity } },
+      data: { stockQuantity: { decrement: item.quantity }, updatedById: actorId }
+    });
+    if (updated.count !== 1) throw new ApiError(409, 'INSUFFICIENT_STOCK', `Insufficient stock for ${products.get(item.productId)!.name}`);
+  }));
+
   const sale = await tx.sale.create({ data: {
     salesCode: await saleCode(tx, at), customerId: input.customerId, totalAmount: money(input.total),
     status: 'COMPLETED', settlementSource, saleDate: at, notes: input.notes,
@@ -200,9 +213,9 @@ async function stockAndSale(tx: Tx, input: ReturnType<typeof saleInput>, actorId
     })) },
   }, include: { items: true } });
   await saleEvents(tx, sale, at, actorId, false);
-  for (const item of sale.items) await inventoryEvent(tx, { key: `inventory:sale-item:${item.id}`,
+  await Promise.all(sale.items.map(item => inventoryEvent(tx, { key: `inventory:sale-item:${item.id}`,
     sourceType: 'SALE_ITEM', sourceId: item.id, productId: item.productId,
-    quantityChange: -item.quantity, unitCost: item.purchaseCostAtSale, at, actorId });
+    quantityChange: -item.quantity, unitCost: item.purchaseCostAtSale, at, actorId })));
   return sale;
 }
 
@@ -1329,7 +1342,8 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
       ])].sort();
       for (const productId of affectedProducts)
         await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
-      for (const item of [...original.items].sort((a, b) => a.productId.localeCompare(b.productId))) {
+
+      await Promise.all(original.items.map(async (item) => {
         const restoredProduct = await tx.product.update({ where: { id: item.productId }, data: {
           stockQuantity: { increment: item.quantity }, updatedById: session.user.id,
         } });
@@ -1337,7 +1351,8 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
           sourceType: 'SALE_RESTORED', sourceId: saleId, productId: item.productId,
           quantityChange: item.quantity, unitCost: restoredProduct.purchasePrice,
           at, actorId: session.user.id });
-      }
+      }));
+
       const newSale = replacement ? await stockAndSale(tx, replacement, session.user.id, at, 'REPLACEMENT_NETTED') : null;
       await tx.sale.update({ where: { id: saleId }, data: { status: 'VOIDED', updatedById: session.user.id } });
       const created = await tx.saleCorrection.create({ data: {
