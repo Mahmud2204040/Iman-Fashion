@@ -235,6 +235,54 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
     return null;
   };
   const cloudReady = () => !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+
+  route('get', '/api/v1/dashboard/summary', 'OWNER', async (req, res, session) => {
+    const cashResult = await prisma.financialEvent.aggregate({ _sum: { amount: true }, where: { metric: 'CASH' } });
+    const currentCash = Number(cashResult._sum.amount || 0);
+
+    const stockResult = await prisma.product.aggregate({ _sum: { stockQuantity: true }, where: { status: 'ACTIVE' } });
+    const totalStock = stockResult._sum.stockQuantity || 0;
+
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const todaySales = await prisma.sale.aggregate({ _sum: { totalAmount: true }, where: { createdAt: { gte: today }, status: 'COMPLETED' } });
+    const todaySalesAmount = Number(todaySales._sum.totalAmount || 0);
+
+    const todayCustomOrders = await prisma.customOrder.count({ where: { createdAt: { gte: today } } });
+
+    const recentSales = await prisma.sale.findMany({ take: 5, orderBy: { createdAt: 'desc' }, include: { customer: true, items: true } });
+    const recentOrders = await prisma.customOrder.findMany({ take: 5, orderBy: { createdAt: 'desc' }, include: { customer: true } });
+
+    const allActivity = [
+      ...recentSales.map(sale => ({
+        id: `sale-${sale.id}`, kind: 'sale', title: `Sale ${sale.salesCode}`,
+        detail: `${sale.customer?.name} · ${sale.items.reduce((s, i) => s + i.quantity, 0)} items`,
+        amount: String(sale.totalAmount), at: sale.createdAt.toISOString()
+      })),
+      ...recentOrders.map(order => ({
+        id: `order-${order.id}`, kind: 'custom_order', title: `Custom order ${order.orderCode}`,
+        detail: `${order.customer?.name} · ${order.productName}`,
+        amount: String(order.totalPrice), at: order.createdAt.toISOString()
+      }))
+    ];
+
+    allActivity.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+    res.json({
+      data: {
+        stats: [
+          { id: 'today-sales', value: todaySalesAmount, trend: [todaySalesAmount] },
+          { id: 'today-custom-orders', value: todayCustomOrders, trend: [todayCustomOrders] },
+          { id: 'current-cash', value: currentCash, trend: [currentCash] },
+          { id: 'total-stock-items', value: totalStock, trend: [totalStock] },
+        ],
+        activity: allActivity.slice(0, 5)
+      },
+      meta: { generatedAt: new Date().toISOString() }
+    });
+  });
+
   const configureCloud = () => cloudinary.config({ cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY, api_secret: process.env.CLOUDINARY_API_SECRET, secure: true });
 

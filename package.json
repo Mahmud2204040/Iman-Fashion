@@ -25,6 +25,7 @@
     "probe:login": "powershell -NoProfile -ExecutionPolicy Bypass -File probe-login.ps1"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"
