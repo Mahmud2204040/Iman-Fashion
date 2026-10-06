@@ -8,7 +8,7 @@ import Input from '../../components/common/Input/Input.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { ROLES } from '../../constants/roles.js';
-import loginPhoto from '../../assets/login_page_iman_fashion.png';
+import loginPhoto from '../../assets/login_page_iman_fashion.webp';
 import logoImage from '../../assets/Logo.png';
 import styles from './LoginPage.module.css';
 

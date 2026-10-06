@@ -16,36 +16,41 @@
  * Per PROJECT_RULES.md §9, RoleRoute is a UX gate only — backend still
  * has to enforce every authorization decision.
  */
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { PageSkeleton } from '../components/common/index.js';
 
 import { ROLES } from '../constants/roles.js';
 
 import LoginPage from '../pages/auth/LoginPage.jsx';
-import DashboardPage from '../pages/dashboard/DashboardPage.jsx';
-import ProfilePage from '../pages/users/ProfilePage.jsx';
+const DashboardPage = lazy(() => import('../pages/dashboard/DashboardPage.jsx'));
+const ProfilePage = lazy(() => import('../pages/users/ProfilePage.jsx'));
 
-import SaleListPage from '../pages/sales/SaleListPage.jsx';
-import NewSalePage from '../pages/sales/NewSalePage.jsx';
+const SaleListPage = lazy(() => import('../pages/sales/SaleListPage.jsx'));
+const NewSalePage = lazy(() => import('../pages/sales/NewSalePage.jsx'));
 
-import CustomerListPage from '../pages/customers/CustomerListPage.jsx';
-import CustomerDetailPage from '../pages/customers/CustomerDetailPage.jsx';
-import NewCustomerPage from '../pages/customers/NewCustomerPage.jsx';
+const CustomerListPage = lazy(() => import('../pages/customers/CustomerListPage.jsx'));
+const CustomerDetailPage = lazy(() => import('../pages/customers/CustomerDetailPage.jsx'));
+const NewCustomerPage = lazy(() => import('../pages/customers/NewCustomerPage.jsx'));
 
-import CustomOrderListPage from '../pages/customOrders/CustomOrderListPage.jsx';
-import NewCustomOrderPage from '../pages/customOrders/NewCustomOrderPage.jsx';
-import ProductWorkbenchPage from '../pages/products/ProductWorkbenchPage.jsx';
+const CustomOrderListPage = lazy(() => import('../pages/customOrders/CustomOrderListPage.jsx'));
+const NewCustomOrderPage = lazy(() => import('../pages/customOrders/NewCustomOrderPage.jsx'));
+const ProductWorkbenchPage = lazy(() => import('../pages/products/ProductWorkbenchPage.jsx'));
 
-import SupplierWorkbenchPage from '../pages/suppliers/SupplierWorkbenchPage.jsx';
+const SupplierWorkbenchPage = lazy(() => import('../pages/suppliers/SupplierWorkbenchPage.jsx'));
 
-import PurchaseWorkbenchPage from '../pages/purchases/PurchaseWorkbenchPage.jsx';
-import NewPurchasePage from '../pages/purchases/NewPurchasePage.jsx';
+const PurchaseWorkbenchPage = lazy(() => import('../pages/purchases/PurchaseWorkbenchPage.jsx'));
+const NewPurchasePage = lazy(() => import('../pages/purchases/NewPurchasePage.jsx'));
 
-import RawMaterialInventoryPage from '../pages/rawMaterials/RawMaterialInventoryPage.jsx';
-import ExpensesPage from '../pages/expenses/ExpensesPage.jsx';
-import CashPage, { CashOpeningPage, CashClosingPage, CashClosingHistoryPage } from '../pages/cash/CashPage.jsx';
+const RawMaterialInventoryPage = lazy(() => import('../pages/rawMaterials/RawMaterialInventoryPage.jsx'));
+const ExpensesPage = lazy(() => import('../pages/expenses/ExpensesPage.jsx'));
+const CashPage = lazy(() => import('../pages/cash/CashPage.jsx'));
+const CashOpeningPage = lazy(() => import('../pages/cash/CashPage.jsx').then(m => ({ default: m.CashOpeningPage })));
+const CashClosingPage = lazy(() => import('../pages/cash/CashPage.jsx').then(m => ({ default: m.CashClosingPage })));
+const CashClosingHistoryPage = lazy(() => import('../pages/cash/CashPage.jsx').then(m => ({ default: m.CashClosingHistoryPage })));
 
-import ReportsIndexPage from '../pages/reports/ReportsIndexPage.jsx';
-import ReportDetailPage from '../pages/reports/ReportDetailPage.jsx';
+const ReportsIndexPage = lazy(() => import('../pages/reports/ReportsIndexPage.jsx'));
+const ReportDetailPage = lazy(() => import('../pages/reports/ReportDetailPage.jsx'));
 
 import NotFoundPage from '../pages/NotFoundPage.jsx';
 
@@ -61,7 +66,8 @@ const OWNER_ONLY = [ROLES.OWNER];
 
 export default function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<PageSkeleton />}>
+      <Routes>
       {/* Default entry — auth-aware. */}
       <Route path="/" element={<RootRedirect />} />
 
@@ -251,6 +257,7 @@ export default function AppRoutes() {
       {/* Catch-all */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </Suspense>
   );
 }
 

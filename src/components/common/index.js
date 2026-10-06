@@ -15,3 +15,4 @@ export { default as DataTable } from './DataTable/DataTable.jsx';
 export { default as Card } from './Card/Card.jsx';
 export { default as SearchInput } from './SearchInput/SearchInput.jsx';
 export { default as PageHeader } from './PageHeader/PageHeader.jsx';
+export { default as PageSkeleton } from './PageSkeleton/PageSkeleton.jsx';
