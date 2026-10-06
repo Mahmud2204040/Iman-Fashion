@@ -1,10 +1,49 @@
 services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: iman
+      POSTGRES_PASSWORD: iman_password
+      POSTGRES_DB: iman_fashion
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iman -d iman_fashion"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    command: > 
+      sh -c "npm run db:deploy && npm start"
+    environment:
+      DATABASE_URL: "postgresql://iman:iman_password@db:5432/iman_fashion?schema=public"
+      NODE_ENV: "production"
+      PORT: "4000"
+      APP_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
+    ports:
+      - "127.0.0.1:4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
   web:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_API_BASE_URL: "/api" # Since we will proxy /api -> api:4000
     ports:
       - "127.0.0.1:8080:8080"
+    depends_on:
+      - api
     restart: unless-stopped
+
+volumes:
+  db_data:
