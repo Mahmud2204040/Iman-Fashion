@@ -29,19 +29,17 @@ export async function peekNextCustomerCode() {
   return '';
 }
 
-export async function getCustomers() {
-  const result = await apiRequest('/api/v1/customers?pageSize=100', { raw: true });
-  let rows = result.data;
-  if (result.meta.total > rows.length) {
-    let page = 2;
-    while (rows.length < result.meta.total) {
-      const next = await apiRequest(`/api/v1/customers?page=${page}&pageSize=100`, { raw: true });
-      rows = rows.concat(next.data);
-      if (next.data.length === 0) break;
-      page += 1;
-    }
-  }
-  return rows.map(normalizeCustomer);
+export async function getCustomers({ page = 1, pageSize = 10, search = '' } = {}) {
+  const params = new URLSearchParams();
+  if (page) params.set('page', page);
+  if (pageSize) params.set('pageSize', pageSize);
+  if (search) params.set('search', search);
+
+  const result = await apiRequest(`/api/v1/customers?${params.toString()}`, { raw: true });
+  return {
+    data: (result.data || []).map(normalizeCustomer),
+    meta: result.meta || { page, pageSize, total: 0 }
+  };
 }
 
 export async function getCustomerById(id) {

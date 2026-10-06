@@ -13,7 +13,8 @@ import T from '../../components/common/LocalizedText.jsx';
  * directory but cannot create records (per PROJECT_RULES.md §8).
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 import {
   Card,
@@ -29,49 +30,34 @@ import styles from './CustomerListPage.module.css';
 
 export default function CustomerListPage() {
   const navigate = useNavigate();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const PAGE_SIZE = 25;
+  const requestedPage = Number(searchParams.get('page')) || 1;
+  const page = Math.max(1, requestedPage);
+  const query = searchParams.get('q') || '';
+  
+  const queryClient = useQueryClient();
+
+  const { data: qData, isLoading: loading, error: errorObj } = useQuery({
+    queryKey: ['customers', page, PAGE_SIZE, query],
+    queryFn: () => getCustomers({ page, pageSize: PAGE_SIZE, search: query }),
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const error = errorObj?.message || '';
+  const filtered = qData?.data || [];
+  const totalItems = qData?.meta?.total || 0;
+  const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-    getCustomers()
-      .then((data) => {
-        if (cancelled) return;
-        if (!Array.isArray(data)) {
-          throw new Error(
-            'Customer service did not return an array. Got ' + typeof data,
-          );
-        }
-        setRows(data);
-      })
-      .catch((err_) => {
-        if (cancelled) return;
-        setError(err_?.message || 'Could not load customers.');
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoading(false);
+    if (page < pageCount) {
+      queryClient.prefetchQuery({
+        queryKey: ['customers', page + 1, PAGE_SIZE, query],
+        queryFn: () => getCustomers({ page: page + 1, pageSize: PAGE_SIZE, search: query }),
       });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return rows;
-    const q = query.trim().toLowerCase();
-    return rows.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.customerCode || '').toLowerCase().includes(q) ||
-        (c.phone || '').toLowerCase().includes(q) ||
-        (c.address || '').toLowerCase().includes(q),
-    );
-  }, [rows, query]);
+    }
+  }, [page, pageCount, query, queryClient]);
 
   return (
     <main className={styles.page}>
@@ -85,12 +71,12 @@ export default function CustomerListPage() {
       <div className={styles.controls}>
         <SearchInput
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { const next = new URLSearchParams(searchParams); if (e.target.value) next.set('q', e.target.value); else next.delete('q'); next.set('page', '1'); setSearchParams(next, { replace: true }); }}
           placeholder="Search by code, name or phone"
           aria-label="Search customers"
         />
         <span className={styles.count}>
-          {formatCount(filtered.length, 'customer', 'customers', 'গ্রাহক')}
+          {formatCount(totalItems, 'customer', 'customers', 'গ্রাহক')}
         </span>
       </div>
 
@@ -214,6 +200,28 @@ export default function CustomerListPage() {
               </li>
             ))}
           </ul>
+
+          {pageCount > 1 && (
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end', marginTop: '16px' }}>
+              <button 
+                type="button" 
+                disabled={page === 1}
+                onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page - 1)); setSearchParams(next); }}
+                style={{ padding: '6px 12px', border: '1px solid #ccc', borderRadius: '4px' }}
+              >
+                <T>Previous</T>
+              </button>
+              <span>{page} / {pageCount}</span>
+              <button 
+                type="button" 
+                disabled={page === pageCount}
+                onClick={() => { const next = new URLSearchParams(searchParams); next.set('page', String(page + 1)); setSearchParams(next); }}
+                style={{ padding: '6px 12px', border: '1px solid #ccc', borderRadius: '4px' }}
+              >
+                <T>Next</T>
+              </button>
+            </div>
+          )}
         </>
       )}
     </main>

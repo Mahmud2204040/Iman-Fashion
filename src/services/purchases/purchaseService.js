@@ -103,7 +103,7 @@ export async function getPurchaseById(id) {
        try {
           const supp = await getSupplierById(raw.supplierId);
           if (supp) customerMap.set(raw.supplierId, supp.name);
-       } catch {}
+       } catch { /* ignore */ }
     }
     return normalizePurchase(raw, customerMap);
   } catch (err) {

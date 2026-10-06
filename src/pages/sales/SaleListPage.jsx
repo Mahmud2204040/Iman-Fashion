@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 import { SearchInput, Spinner } from '../../components/common/index.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -50,15 +51,10 @@ export default function SaleListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { language, t } = useLocale();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const query = searchParams.get('q') || '';
   const dateFilter = searchParams.get('date') || '';
   const sortOrder = searchParams.get('sort') === 'oldest' ? 'oldest' : 'newest';
-  const [deepResults, setDeepResults] = useState(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+      const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => startOfMonth(parseDateValue(cashBusinessDate(new Date().toISOString())) || new Date()));
   const datePickerRef = useRef(null);
 
@@ -93,49 +89,33 @@ export default function SaleListPage() {
     };
   }, [calendarOpen]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-    getSales({ actor: user })
-      .then((data) => {
-        if (cancelled) return;
-        if (!Array.isArray(data)) throw new Error('Sales service did not return an array. Got ' + typeof data);
-        setRows(data);
-      })
-      .catch((err) => { if (!cancelled) setError(err?.message || 'Could not load sales.'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [user, reloadKey]);
 
-  const filtered = useMemo(() => {
-    const dated = dateFilter ? rows.filter((sale) => cashBusinessDate(sale.createdAt) === dateFilter) : rows;
-    if (!query.trim()) return dated;
-    const value = query.trim().toLowerCase();
-    return dated.filter((sale) => sale.salesCode.toLowerCase().includes(value) || (sale.customerName || '').toLowerCase().includes(value));
-  }, [rows, query, dateFilter]);
-
-  async function runDeepSearch() {
-    if (!query.trim()) { setDeepResults(null); return; }
-    try { setDeepResults(await searchSalesByCode(query.trim(), { actor: user })); }
-    catch { setDeepResults([]); }
-  }
-
-  const displayed = useMemo(() => {
-    const merged = deepResults === null ? filtered : [
-      ...filtered,
-      ...deepResults.filter((sale) => (!dateFilter || cashBusinessDate(sale.createdAt) === dateFilter) && !filtered.some((item) => item.id === sale.id)),
-    ];
-    return [...merged].sort((a, b) => sortOrder === 'newest'
-      ? String(b.createdAt).localeCompare(String(a.createdAt))
-      : String(a.createdAt).localeCompare(String(b.createdAt)));
-  }, [deepResults, filtered, dateFilter, sortOrder]);
-
-  const pageCount = Math.max(1, Math.ceil(displayed.length / PAGE_SIZE));
   const requestedPage = Number(searchParams.get('page')) || 1;
-  const page = Math.min(Math.max(1, requestedPage), pageCount);
+  const page = Math.max(1, requestedPage);
+  const queryClient = useQueryClient();
+
+  const { data: qData, isLoading: loading, isError, error, refetch: reloadSales } = useQuery({
+    queryKey: ['sales', page, PAGE_SIZE, query, dateFilter, sortOrder],
+    queryFn: () => getSales({ page, pageSize: PAGE_SIZE, search: query, date: dateFilter, sort: sortOrder }),
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const displayed = qData?.data || [];
+  const totalItems = qData?.meta?.total || 0;
+  const pageCount = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page < pageCount) {
+      queryClient.prefetchQuery({
+        queryKey: ['sales', page + 1, PAGE_SIZE, query, dateFilter, sortOrder],
+        queryFn: () => getSales({ page: page + 1, pageSize: PAGE_SIZE, search: query, date: dateFilter, sort: sortOrder }),
+      });
+    }
+  }, [page, pageCount, query, dateFilter, sortOrder, queryClient]);
+
   const firstIndex = (page - 1) * PAGE_SIZE;
-  const pageRows = displayed.slice(firstIndex, firstIndex + PAGE_SIZE);
+  const pageRows = displayed;
   const selectedSaleId = routeSaleId || pageRows[0]?.id || null;
   const listSearch = searchParams.toString();
 
@@ -163,7 +143,7 @@ export default function SaleListPage() {
         <section className={styles.ledger} aria-label={t('Sales history')}>
           <div className={styles.ledgerTitle}>
             <div><strong>{t('Sales history')}</strong><span>{t('Choose a sale to see its full invoice.')}</span></div>
-            <span className={styles.countChip} aria-live="polite">{formatCount(displayed.length, 'sale', 'sales', 'বিক্রয়')}</span>
+            <span className={styles.countChip} aria-live="polite">{formatCount(totalItems, 'sale', 'sales', 'বিক্রয়')}</span>
           </div>
 
           <div className={styles.controls}>
@@ -171,8 +151,8 @@ export default function SaleListPage() {
               className={styles.search}
               icon={<img src={searchIcon} alt="" />}
               value={query}
-              onChange={(event) => { updateView({ q: event.target.value, page: 1 }); setDeepResults(null); }}
-              onKeyDown={(event) => { if (event.key === 'Enter') runDeepSearch(); }}
+              onChange={(event) => { updateView({ q: event.target.value, page: 1 });  }}
+              onKeyDown={(event) => { if (event.key === 'Enter') ; }}
               placeholder="Search by sales code or customer"
               aria-label="Search sales"
             />
@@ -220,13 +200,13 @@ export default function SaleListPage() {
             </div>
             {(dateFilter || query.trim()) && <div className={styles.quickActions}>
               {dateFilter && <button type="button" onClick={() => updateView({ date: '', page: 1 })}>{t('Clear date')}</button>}
-              {query.trim() && <button type="button" onClick={runDeepSearch}>{t('Search by code')}</button>}
+              {query.trim() && <button type="button" onClick={reloadSales}>{t('Search by code')}</button>}
             </div>}
           </div>
 
           {loading ? <div className={styles.statusCard} aria-busy="true"><Spinner size="sm" />{t('Loading sales…')}</div>
-            : error ? <div className={styles.error} role="alert">{t(error)} <button type="button" onClick={() => setReloadKey((value) => value + 1)}>{t('Retry')}</button></div>
-              : displayed.length === 0 ? <div className={styles.empty}><img src={helpIcon} alt="" /><h2>{t(rows.length ? 'No matching sales' : 'No sales yet')}</h2><p>{t(rows.length ? 'Try another search or date.' : 'When you complete a sale, it will show up here.')}</p></div>
+            : error ? <div className={styles.error} role="alert">{t(error)} <button type="button" onClick={() => reloadSales()}>{t('Retry')}</button></div>
+              : displayed.length === 0 ? <div className={styles.empty}><img src={helpIcon} alt="" /><h2>{t((dateFilter || query.trim()) ? 'No matching sales' : 'No sales yet')}</h2><p>{t((dateFilter || query.trim()) ? 'Try another search or date.' : 'When you complete a sale, it will show up here.')}</p></div>
                 : <>
                   <ol className={styles.saleList}>
                     {pageRows.map((sale) => <li key={sale.id}>
@@ -238,7 +218,7 @@ export default function SaleListPage() {
                     </li>)}
                   </ol>
                   <div className={styles.tableFooter}>
-                    <span>{t('Showing')} {pageCount > 1 ? `${firstIndex + 1}–${firstIndex + pageRows.length}` : pageRows.length} {t('out of')} {formatCount(displayed.length, 'sale', 'sales', 'বিক্রয়')}</span>
+                    <span>{t('Showing')} {pageCount > 1 ? `${totalItems > 0 ? firstIndex + 1 : 0}–${firstIndex + pageRows.length}` : pageRows.length} {t('out of')} {formatCount(totalItems, 'sale', 'sales', 'বিক্রয়')}</span>
                     <div className={styles.pagination}>
                       <button type="button" disabled={page === 1} onClick={() => updateView({ page: page - 1 })} aria-label={t('Previous')}><img src={previousIcon} alt="" /></button>
                       <button type="button" disabled={page === pageCount} onClick={() => updateView({ page: page + 1 })} aria-label={t('Next')}><img src={nextIcon} alt="" /></button>

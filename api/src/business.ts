@@ -181,7 +181,12 @@ async function stockAndSale(tx: Tx, input: ReturnType<typeof saleInput>, actorId
   const customer = await tx.customer.findUnique({ where: { id: input.customerId } });
   if (!customer || customer.status !== 'ACTIVE') throw new ApiError(409, 'CUSTOMER_INACTIVE', 'Active customer required');
 
-  const productIds = input.items.map(i => i.productId);
+  const productIds = [...new Set(input.items.map(i => i.productId))].sort();
+  if (productIds.length > 0) {
+    const idList = productIds.map(id => `'${id}'`).join(',');
+    await tx.$queryRawUnsafe(`SELECT id FROM products WHERE id IN (${idList}) ORDER BY id FOR UPDATE`);
+  }
+
   const foundProducts = await tx.product.findMany({ where: { id: { in: productIds } } });
 
   const products = new Map<string, typeof foundProducts[0]>();
@@ -1246,15 +1251,26 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
   });
 
   route('get', '/api/v1/sales', undefined, async (req, res, session) => {
-    const page = Number(req.query.page ?? 1), pageSize = Number(req.query.pageSize ?? 25);
-    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) throw bad('Invalid pagination');
+    const { page, pageSize, skip, take } = paging(req);
     const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 100) : '';
-    const where: Prisma.SaleWhereInput = search ? { OR: [
-      { salesCode: { contains: search, mode: 'insensitive' } },
-      { customer: { name: { contains: search, mode: 'insensitive' } } },
-    ] } : {};
+    const date = typeof req.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : '';
+    let dateFilter = {};
+    if (date) {
+      const start = new Date(`${date}T00:00:00+06:00`);
+      if (!Number.isNaN(start.getTime())) {
+        const end = new Date(start.getTime() + 86400000);
+        dateFilter = { saleDate: { gte: start, lt: end } };
+      }
+    }
+    const where: Prisma.SaleWhereInput = {
+      ...(search ? { OR: [
+        { salesCode: { contains: search, mode: 'insensitive' } },
+        { customer: { name: { contains: search, mode: 'insensitive' } } },
+      ] } : {}),
+      ...dateFilter
+    };
     const [rows, total] = await prisma.$transaction([
-      prisma.sale.findMany({ where, include: { items: true }, orderBy: { saleDate: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.sale.findMany({ where, include: { items: true }, orderBy: { saleDate: (req.query.sort === 'oldest' ? 'asc' : 'desc') }, skip, take }),
       prisma.sale.count({ where }),
     ]);
     res.json({ data: rows.map((row) => serializeSale(row, session.user.role === 'OWNER')), meta: { page, pageSize, total } });
@@ -1340,8 +1356,10 @@ export function registerBusinessRoutes(app: Express, prisma: PrismaClient, authe
       const affectedProducts = [...new Set([
         ...original.items.map((item) => item.productId), ...(replacement?.items.map((item) => item.productId) ?? []),
       ])].sort();
-      for (const productId of affectedProducts)
-        await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
+      if (affectedProducts.length > 0) {
+        const idList = affectedProducts.map(id => `'${id}'`).join(',');
+        await tx.$queryRawUnsafe(`SELECT id FROM products WHERE id IN (${idList}) ORDER BY id FOR UPDATE`);
+      }
 
       await Promise.all(original.items.map(async (item) => {
         const restoredProduct = await tx.product.update({ where: { id: item.productId }, data: {

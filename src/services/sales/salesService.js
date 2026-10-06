@@ -9,8 +9,8 @@ async function getCustomerMap() {
   const now = Date.now();
   if (!cachedCustomerMap || now - lastCustomerFetchTime > 30000) {
     try {
-      const customers = await getCustomers();
-      cachedCustomerMap = new Map(customers.map((c) => [c.id, c.name]));
+      const result = await getCustomers({ pageSize: 5000 });
+      cachedCustomerMap = new Map((result.data || []).map((c) => [c.id, c.name]));
       lastCustomerFetchTime = now;
     } catch {
       if (!cachedCustomerMap) cachedCustomerMap = new Map();
@@ -63,8 +63,8 @@ export function generateSalesCode(_date = new Date()) {
 }
 
 export async function searchCustomers(query = '') {
-  const customers = await getCustomers(query);
-  return customers.filter((customer) => customer.isActive);
+  const result = await getCustomers({ search: query, pageSize: 50 });
+  return (result.data || []).filter((customer) => customer.isActive);
 }
 
 export async function createCustomer(payload = {}, options = {}) {
@@ -83,20 +83,20 @@ export async function getProductById(productId) {
   return getProductFromCatalogue(productId);
 }
 
-export async function getSales(_options = {}) {
+export async function getSales({ page = 1, pageSize = 10, search = '', date = '', sort = 'newest' } = {}) {
   const customerMap = await getCustomerMap();
-  const result = await apiRequest('/api/v1/sales?pageSize=100', { raw: true });
-  let rows = result.data;
-  if (result.meta && result.meta.total > rows.length) {
-    let page = 2;
-    while (rows.length < result.meta.total) {
-      const next = await apiRequest(`/api/v1/sales?page=${page}&pageSize=100`, { raw: true });
-      rows = rows.concat(next.data);
-      if (next.data.length === 0) break;
-      page += 1;
-    }
-  }
-  return rows.map((sale) => normalizeSale(sale, customerMap));
+  const params = new URLSearchParams();
+  if (page) params.set('page', page);
+  if (pageSize) params.set('pageSize', pageSize);
+  if (search) params.set('search', search);
+  if (date) params.set('date', date);
+  if (sort) params.set('sort', sort);
+
+  const result = await apiRequest(`/api/v1/sales?${params.toString()}`, { raw: true });
+  return {
+    data: (result.data || []).map((sale) => normalizeSale(sale, customerMap)),
+    meta: result.meta || { page, pageSize, total: 0 }
+  };
 }
 
 export async function getSaleById(id, _options = {}) {
