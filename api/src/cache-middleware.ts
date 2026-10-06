@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import { l4Cache, buildCacheKey, isCacheableL4, getTtlFromResource } from './cache.js';
+import { l5Cache } from './l5-cache.js';
 
-export function l4CacheMiddleware(req: Request, res: Response, next: NextFunction) {
+export async function l4CacheMiddleware(req: Request, res: Response, next: NextFunction) {
   // Only cache GET
   if (req.method !== 'GET') {
     return next();
@@ -40,8 +41,15 @@ export function l4CacheMiddleware(req: Request, res: Response, next: NextFunctio
     userId,
   });
 
-  const cached = l4Cache.get(cacheKey);
+  let cached = l4Cache.get(cacheKey);
   
+  if (!cached) {
+    cached = await l5Cache.get(cacheKey);
+    if (cached && Date.now() <= cached.expiresAt) {
+      l4Cache.set(cacheKey, cached); // Promote back to L4
+    }
+  }
+
   if (cached) {
     // Check TTL
     if (Date.now() <= cached.expiresAt) {
@@ -70,11 +78,13 @@ export function l4CacheMiddleware(req: Request, res: Response, next: NextFunctio
     
     // Only cache successes under 2MiB
     if (res.statusCode >= 200 && res.statusCode < 300 && body && !body.error && bodyBytes < 2 * 1024 * 1024) {
-      l4Cache.set(cacheKey, {
+      const cacheObj = {
         payload: body,
         expiresAt: Date.now() + ttl,
         createdAt: Date.now(),
-      });
+      };
+      l4Cache.set(cacheKey, cacheObj);
+      l5Cache.set(cacheKey, cacheObj).catch(() => {}); // async fire and forget
       res.setHeader('X-Cache', 'MISS');
     } else {
       res.setHeader('X-Cache', 'BYPASS');
