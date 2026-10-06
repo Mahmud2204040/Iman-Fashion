@@ -62,7 +62,8 @@ export async function getSalesByProduct(filters = {}, { actor } = {}) {
 export async function getSalesList(filters = {}, { actor } = {}) {
   requireOwner({ actor });
   const { getSales } = await import('../sales/salesService.js');
-  return getSales(); // Needs full list for now until parity
+  const result = await getSales({ pageSize: 5000 });
+  return result.data || [];
 }
 
 export async function getCustomOrderStatusCounts(filters = {}, { actor } = {}) {
@@ -99,7 +100,8 @@ export async function getStockAdjustmentsReport(filters = {}, { actor } = {}) {
 export async function getCustomerListReport({ actor } = {}) {
   requireOwner({ actor });
   const { getCustomers } = await import('../customers/customerService.js');
-  return getCustomers();
+  const result = await getCustomers({ pageSize: 5000 });
+  return result.data || [];
 }
 
 export async function getSupplierPurchasesReport(filters = {}, { actor } = {}) {

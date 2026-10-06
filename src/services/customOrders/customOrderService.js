@@ -70,8 +70,8 @@ function normalizeCustomOrder(raw) {
 }
 
 export async function listCustomersForCustomOrders() {
-  const customers = await getCustomers();
-  return customers.filter((customer) => customer.isActive);
+  const result = await getCustomers({ pageSize: 5000 });
+  return (result.data || []).filter((customer) => customer.isActive);
 }
 
 export async function getCustomOrders() {
